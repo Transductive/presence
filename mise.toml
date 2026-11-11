@@ -1,0 +1,85 @@
+# Developer commands live here; build behavior lives in build.gradle.kts.
+# The Gradle wrapper pins Gradle, and mise provisions Java on all platforms.
+[tools]
+java = "temurin-21.0.13+9.0.LTS"
+
+# Extra arguments to `mise run <task> -- ...` are forwarded to Gradle.
+[tasks.default]
+description = "List available development commands"
+run = "mise tasks ls"
+
+[tasks.build]
+description = "Compile, test, and package the library, sources, and Javadoc"
+run = "sh ./gradlew build"
+run_windows = "cmd /d /c gradlew.bat build"
+
+[tasks.test]
+description = "Run unit tests (forward filters with -- --tests ...)"
+run = "sh ./gradlew test"
+run_windows = "cmd /d /c gradlew.bat test"
+
+[tasks.check]
+description = "Run Gradle verification tasks"
+run = "sh ./gradlew check"
+run_windows = "cmd /d /c gradlew.bat check"
+
+[tasks.clean]
+description = "Remove generated build outputs through Gradle"
+run = "sh ./gradlew clean"
+run_windows = "cmd /d /c gradlew.bat clean"
+
+[tasks.docs]
+description = "Generate API documentation in build/docs/javadoc"
+run = "sh ./gradlew javadoc"
+run_windows = "cmd /d /c gradlew.bat javadoc"
+
+[tasks."publish:local"]
+description = "Build, test, and publish the snapshot to local Maven"
+run = "sh ./gradlew build publishToMavenLocal"
+run_windows = "cmd /d /c gradlew.bat build publishToMavenLocal"
+
+[tasks.ci]
+description = "Run a clean build with the same command used in CI"
+# One Gradle invocation keeps clean and build ordered.
+run = "sh ./gradlew --no-daemon clean build"
+run_windows = "cmd /d /c gradlew.bat --no-daemon clean build"
+
+[tasks.gradle]
+description = "Run any Gradle command (mise run gradle -- dependencies)"
+run = "sh ./gradlew"
+run_windows = "cmd /d /c gradlew.bat"
+
+[tasks.benchmark]
+description = "Run JMH comparisons and print the browser report URL"
+run = "sh ./gradlew benchmark"
+run_windows = "cmd /d /c gradlew.bat benchmark"
+
+[tasks."benchmark:smoke"]
+description = "Check benchmark wiring with a short N=1000 run (not performance evidence)"
+run = "sh ./gradlew benchmarkSmoke"
+run_windows = "cmd /d /c gradlew.bat benchmarkSmoke"
+
+[tasks."benchmark:flamegraph"]
+description = "Profile with JFR and generate browser-ready HTML flamegraphs"
+run = "sh ./gradlew benchmarkFlamegraph"
+run_windows = "cmd /d /c gradlew.bat benchmarkFlamegraph"
+
+[tasks."benchmark:allocation"]
+description = "Verify lookup allocation for ASCII, Unicode, malformed, and long strings at N=1000"
+run = "sh ./gradlew benchmarkAllocation"
+run_windows = "cmd /d /c gradlew.bat benchmarkAllocation"
+
+[tasks."benchmark:misses"]
+description = "Compare absent rapidhash and JDK lookups across all five sizes with hot and broad query pools"
+run = "sh ./gradlew benchmarkMisses"
+run_windows = "cmd /d /c gradlew.bat benchmarkMisses"
+
+[tasks."benchmark:prefilter"]
+description = "Measure exact downstream work with and without Bloom, including false positives"
+run = "sh ./gradlew benchmarkPrefilter"
+run_windows = "cmd /d /c gradlew.bat benchmarkPrefilter"
+
+[tasks."benchmark:heap"]
+description = "Measure live object graph footprint and print the browser report URL"
+run = "sh ./gradlew benchmarkHeap"
+run_windows = "cmd /d /c gradlew.bat benchmarkHeap"

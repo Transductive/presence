@@ -1,0 +1,18 @@
+Presence includes pure Java adaptations of these hash algorithms:
+
+MurmurHash3 x64 128-bit
+Author: Austin Appleby; original implementation placed in the public domain.
+Source: https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp
+
+rapidhash v3 and rapidhash Nano v3
+Copyright (C) 2025 Nicolas De Carli; MIT license.
+Based on wyhash by Wang Yi.
+Source: https://github.com/Nicoshev/rapidhash/blob/1ae7842f59f25929a338e5a76e3fa350673e48e1/rapidhash.h
+License: licenses/rapidhash-LICENSE.txt
+
+Komihash 5.34
+Copyright (c) 2021-2026 Aleksey Vaneev; MIT license.
+Source: https://github.com/avaneev/komihash/blob/50a15150746eaf7db32558388a27c6628a46cdee/komihash.h
+License: licenses/komihash-LICENSE.txt
+
+In distributed JARs, these notices and licenses are under META-INF/.
