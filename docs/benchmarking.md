@@ -33,7 +33,7 @@ mise run benchmark:heap
 | `benchmark:prefilter` | Direct exact lookup vs. Bloom then exact; all five N; 0% / 50% hits; downstream CPU tokens=0 / 256 | 40 cases, same full timing settings |
 | `benchmark:heap` | Bloom, HashSet, HashMap, and Bloom + HashMap; all five N | Separate JOL object-graph measurement; 2 GiB maximum analysis heap; no timing claims |
 
-All timed runs use a single benchmark thread, Java 21, a 256 MiB initial fork
+These standard timed runs use a single benchmark thread, Java 21, a 256 MiB initial fork
 heap, a 512 MiB maximum by default, and JMH's GC profiler. The full suite has 120 benchmark cases
 across its parameters; profiling has 35. Allow at least 32 minutes for the full
 suite or 4 minutes 40 seconds for profiling, plus JVM startup and dataset setup.
@@ -88,10 +88,10 @@ Arguments after `--` are Gradle properties:
 mise run benchmark -- -PbenchmarkSizes=1000
 
 # Compare all five Bloom strategies and JDK lookups only at N=1,000.
-mise run benchmark -- -PbenchmarkSizes=1000 '-PbenchmarkInclude=.*MembershipBenchmark.*'
+mise run benchmark -- -PbenchmarkSizes=1000 '-PbenchmarkInclude=.*[.]MembershipBenchmark[.].*'
 
 # Compare mixed lookups across all five default sizes, without construction.
-mise run benchmark -- -PbenchmarkHits=50 '-PbenchmarkInclude=.*MembershipBenchmark.*'
+mise run benchmark -- -PbenchmarkHits=50 '-PbenchmarkInclude=.*[.]MembershipBenchmark[.].*'
 
 # Profile mixed and absent lookups at two sizes.
 mise run benchmark:flamegraph -- '-PbenchmarkSizes=1000,10000' '-PbenchmarkHits=0,50'
@@ -281,6 +281,172 @@ a size at which every Bloom lookup must beat a HashMap lookup. Cached String
 hashes, key size, cache residency, hit rate, hashing work, and downstream cost
 all matter; the separate suites expose those differences.
 
+## Large filters and the blocked experiment
+
+The separate large fixture compares only Murmur3 and rapidhash v3, each with
+the existing Bloom layout and an experimental blocked layout, plus JDK HashSet
+and HashMap. The production `BloomFilter` remains the baseline. The blocked
+implementation belongs to the benchmark source set and is not published in the
+library JAR.
+
+```sh
+mise run benchmark:large:smoke
+mise run benchmark:large
+mise run benchmark:large -- -PbenchmarkSizes=10000000 -PbenchmarkQueryModes=CACHED
+mise run benchmark:large:flamegraph -- -PbenchmarkSizes=50000000 -PbenchmarkQueryModes=CACHED
+```
+
+Defaults are N=1,000 / 10,000,000 / 50,000,000, 0% true hits, and FRESH
+queries. This models incoming strings whose Java hash has not been computed.
+Each measured operation includes constructing the String and checking membership;
+it is not an isolated timing of a function receiving an already-created input.
+CACHED means **reused, prehashed queries**, a supplementary reuse scenario.
+Use `-PbenchmarkQueryModes=CACHED,FRESH` to include both modes.
+Full timing uses two forks, three one-second warmups, and
+five one-second measurements. Each fork starts with 512 MiB and may grow to
+10 GiB; override the maximum with `-PbenchmarkMaxHeap=...`. Construction at
+large N adds substantial time beyond the measured iterations. Normal builds
+run fixture tests, not these experiments.
+
+Each trial constructs only the selected contender. Insertion IDs generate
+unique strings deterministically, without retaining a separate key array.
+Query contents originate from a fixed shuffled pool of 1,048,576 strings, independently of N;
+`-PbenchmarkQueryCount` supports powers of two from 1,024 through 4,194,304.
+True hits use equal-content strings with independent object identity. Miss IDs
+are provably disjoint from insertion IDs. This is a different fixture from
+the original benchmark, so its scores are not direct before/after comparisons
+with earlier reports.
+The retained pool costs memory in both modes: CACHED retains the String array,
+Strings, and their backing byte arrays; FRESH retains a `char[][]` after dropping
+the String array. This is benchmark fixture storage, not a production requirement
+to retain incoming queries. Zero bytes allocated per lookup never means zero
+retained heap. Computing a String's cached hash uses its existing field, while
+retaining that String keeps the whole object and its backing array alive.
+The FRESH character arrays are materialized in query traversal order, while
+CACHED String references are shuffled. Freshly constructed String bytes are
+also warm after copying. Cross-mode scores therefore reflect input preparation
+and memory layout as well as Java hash caching; compare contenders within the
+same mode when evaluating the blocked layout.
+
+The blocked candidate chooses a 512-bit logical block, then derives all probes
+inside it using full-width mixed counters. Adjacent array words do not guarantee
+physical cache-line alignment. Block occupancy and duplicate probes affect
+false positives; assigning both layouts the same nominal target is insufficient.
+
+Calibrate and validate accuracy separately:
+
+```sh
+mise run benchmark:large:accuracy -- -PaccuracySize=1000000
+mise run benchmark:large:accuracy -- -PaccuracyMode=validate -PaccuracySize=10000000
+mise run benchmark:large:accuracy -- -PaccuracyMode=validate -PaccuracySize=50000000
+```
+
+Calibration writes all candidate measurements and `selected.properties` under
+`build/reports/large-accuracy/<run-id>/`. The four parameter names are
+`murmurBlockedBitsPerKey`, `murmurBlockedHashCount`, `rapidBlockedBitsPerKey`,
+and `rapidBlockedHashCount`; pass them as Gradle `-P` options to use a different
+selection. Selection uses measured accuracy and storage, never lookup timing.
+The checked-in defaults use six probes and request 9.89453125 bits/key for
+Murmur3 or 9.904296875 bits/key for rapidhash. They were selected at N=1,000,000
+using eight million training queries and a separate eight-million-query
+holdout. Storage rounds up to whole blocks, so actual bits/key can differ.
+The calibration task defaults to that sample size; validation defaults to
+two million misses. An earlier two-million-query calibration did not establish
+equivalence for Murmur3 and was not used for timings. The revised calibration
+used new miss domains and a tighter training-selection margin.
+The standard filter uses its existing 1% sizing target. Calibration selection,
+calibration holdout, validation, timed queries, and allocation queries have
+separate miss domains.
+
+Validation checks every inserted key for false negatives and at least two
+million independent absent keys per layout/strategy. The equivalence margin is
+an absolute probability difference of 0.0005, or **0.05 percentage points**.
+The conservative difference interval, formed from two 97.5% Wilson marginal
+intervals, must fit entirely within that margin at large N. Individual rates
+also have 95% Wilson intervals. N=1,000 is a reference point that records actual
+accuracy and block rounding without claiming equivalence.
+
+The accuracy runner also audits 100,000 warmed lookups of pre-existing ASCII
+absent strings per layout/strategy using calling-thread allocation counters.
+This excludes input creation. FRESH JMH timing includes constructing a new
+String and reports that allocation separately.
+
+Large timing reports retain raw JMH results and per-fork `setup/*.json`
+sidecars. Sidecars record build time, bit-array payload, and used JVM heap after
+requesting GC. That heap includes the selected structure, query pool, and
+harness; it is not an exclusive retained graph measurement. GC is requested,
+not guaranteed. Timed and profiled results are kept separate.
+
+## Your own browser review
+
+Large benchmark commands generate the grayscale review automatically from the
+cases that actually ran. The HTML uses checked-in [Pebble](https://pebbletemplates.io/)
+templates: a Jinja-like Java engine with automatic HTML escaping. Templates live
+in `src/benchmark/resources/reports/`; `layout.peb` owns the shared design, and
+`review.peb` composes charts, tables, evidence, and profiles. Existing benchmark
+and heap reports use the same rendering engine.
+
+To combine saved large runs without measuring again, copy
+`docs/benchmark-review.example.json` to `benchmark-review.local.json` at the
+repository root and replace its placeholder with your run directories:
+
+```json
+{
+  "title": "Membership, measured.",
+  "runs": [
+    "build/reports/benchmarks/YOUR-TIMING-RUN",
+    "build/reports/benchmarks/YOUR-PROFILE-RUN"
+  ],
+  "accuracy": ["build/reports/large-accuracy/YOUR-VALIDATION/accuracy.json"],
+  "calibrations": ["build/reports/large-accuracy/YOUR-CALIBRATION/selected.json"],
+  "queryPools": ["build/reports/query-pools/YOUR-MEMORY-RUN/query-pool.json"],
+  "notes": ["Describe the workload or any limitations you want to preserve."]
+}
+```
+
+Only `runs` is required. Omit optional fields or use empty arrays when you have
+no corresponding evidence. Paths resolve relative to the manifest's directory;
+forward slashes work on Windows, macOS, and Linux. The run directories must be
+outputs of the **large** benchmark; existing smaller suites retain their own
+automatic reports.
+
+```sh
+mise run benchmark:review
+# Or select a different manifest:
+mise run benchmark:review -- -PreviewManifest=path/to/review.json
+```
+
+The command prints a browser link and local path under
+`build/reports/benchmark-reviews/<run-id>/`. Each review copies its selected run
+directories, including raw JSON, settings, setup sidecars, and JFR artifacts,
+plus supplied evidence JSON. Keep the full directory when sharing. Existing
+runs are not modified. Repeated workloads from different runs stay separate;
+profile timings are excluded from comparison charts. Smoke results remain
+clearly labeled. Missing accuracy or memory measurements are shown as missing,
+and accuracy intervals and blocked dimensions are checked against the inputs.
+Attach all calibration attempts you want to preserve, including failed gates.
+No measurements, test counts, or machine-specific conclusions are embedded in
+the templates.
+
+Measure retained query fixtures separately when needed:
+
+```sh
+mise run benchmark:large:heap
+mise run benchmark:large:heap -- -PbenchmarkSizes=1000 -PbenchmarkQueryCount=1024
+```
+
+This measures both FRESH and CACHED pools using JOL instrumentation, without
+building a membership structure or rerunning timing measurements. It accepts
+`benchmarkSizes`, `benchmarkHits`, and `benchmarkQueryCount`. Add the printed
+JSON path to `queryPools`. These reachable graphs exclude transient String
+construction and the measurement harness; they are distinct from whole-JVM
+heap observations and per-operation allocation.
+
+Report libraries are benchmark-only dependencies; the published library keeps
+zero runtime dependencies. Generated `.html` / `.htm`, `build/`, and the local
+review manifest are ignored by Git. Editable `.peb` templates and the example
+manifest are tracked, so every contributor can generate their own results.
+
 ## Flamegraphs on all three platforms
 
 The profile command uses JMH's built-in Java Flight Recorder profiler, which
@@ -290,15 +456,33 @@ using the standalone Java [async-profiler JFR converter](https://github.com/asyn
 JDK 21 supplies JFR and `jcmd` through mise.
 
 These are JFR execution-sample flamegraphs, not complete native/system stack
-profiles. The converter includes stacks containing our benchmark methods and
-their JMH harness; unrelated JVM threads are excluded. Width represents sample
+profiles. The converter selects stacks containing our benchmark methods, then
+keeps only frames in `io.transductive` (slash and dot notation are supported).
+Frames such as `java/lang/Thread.run`, reflection, and external JMH classes are
+hidden. Benchmark and generated harness frames inside our own namespace remain.
+Equal stacks after filtering are merged by adding their sample weights.
+Hidden callees still contribute to their visible callers' widths: removing a
+JDK leaf does not turn its sampled cost into evidence of exclusive Presence work.
+The graph labels this scope. Width represents sample
 share, not elapsed time or chronological order. Click frames to zoom and use
 the graph's search to locate methods. The report includes sample counts and
 marks zero-sample recordings as insufficient evidence. Counts come from the
 filtered, converted stacks and are checked against the rendered graph. The report
 also links the collapsed stacks for independent inspection. Conversion explicitly
 selects runnable JDK samples; the converter's async-profiler CPU-state selector
-would otherwise discard them.
+would otherwise discard them. `stacks.full.collapsed` retains the selected
+benchmark stacks before frame filtering; the original JFR remains unchanged.
+
+To update an existing run's graphs without rerunning benchmarks:
+
+```sh
+mise run benchmark:flamegraph:render -- -PprofileRun=build/reports/benchmarks/YOUR-PROFILE-RUN
+mise run benchmark:review
+```
+
+The render command updates HTML and collapsed-stack outputs beside each saved
+recording and prints their browser links. Rebuild a combined review afterwards
+so its copied profiles pick up the change.
 
 Profiling uses one fork because the JMH JFR profiler writes a fixed recording
 name for each benchmark/parameter combination. Different runs still have unique

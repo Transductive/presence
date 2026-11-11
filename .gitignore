@@ -9,3 +9,8 @@ out/
 .DS_Store
 Thumbs.db
 mise.local.toml
+
+# Reports are generated locally; editable templates use the .peb extension.
+*.html
+*.htm
+benchmark-review.local.json

@@ -83,3 +83,38 @@ run_windows = "cmd /d /c gradlew.bat benchmarkPrefilter"
 description = "Measure live object graph footprint and print the browser report URL"
 run = "sh ./gradlew benchmarkHeap"
 run_windows = "cmd /d /c gradlew.bat benchmarkHeap"
+
+[tasks."benchmark:large"]
+description = "Compare fresh-input misses for standard/blocked Bloom and JDK collections at N=1000, 10m, and 50m"
+run = "sh ./gradlew benchmarkLarge"
+run_windows = "cmd /d /c gradlew.bat benchmarkLarge"
+
+[tasks."benchmark:large:smoke"]
+description = "Check the large comparison fixture at N=1000 without drawing timing conclusions"
+run = "sh ./gradlew benchmarkLargeSmoke"
+run_windows = "cmd /d /c gradlew.bat benchmarkLargeSmoke"
+
+[tasks."benchmark:large:accuracy"]
+description = "Calibrate blocked sizing or validate independent false-positive rates"
+run = "sh ./gradlew benchmarkLargeAccuracy"
+run_windows = "cmd /d /c gradlew.bat benchmarkLargeAccuracy"
+
+[tasks."benchmark:large:flamegraph"]
+description = "Profile the large comparison and print links to JFR and HTML flamegraphs"
+run = "sh ./gradlew benchmarkLargeProfile"
+run_windows = "cmd /d /c gradlew.bat benchmarkLargeProfile"
+
+[tasks."benchmark:review"]
+description = "Build a combined HTML review from your saved runs without rerunning benchmarks"
+run = "sh ./gradlew benchmarkReview"
+run_windows = "cmd /d /c gradlew.bat benchmarkReview"
+
+[tasks."benchmark:large:heap"]
+description = "Measure retained query-pool memory and print the browser report URL"
+run = "sh ./gradlew benchmarkLargeHeap"
+run_windows = "cmd /d /c gradlew.bat benchmarkLargeHeap"
+
+[tasks."benchmark:flamegraph:render"]
+description = "Rebuild namespace-focused flamegraphs from saved JFR: -- -PprofileRun=path/to/run"
+run = "sh ./gradlew benchmarkRenderProfiles"
+run_windows = "cmd /d /c gradlew.bat benchmarkRenderProfiles"

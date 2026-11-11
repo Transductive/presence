@@ -33,7 +33,7 @@
   </section>
   <section>
     <h2>Footprint across stored-key counts</h2>
-    <div class="table-wrap"><table><thead><tr><th>N</th><th>Input</th><th>Structure</th><th>Reachable B</th><th>Incremental B</th><th>Incremental B / key</th><th>Shared key payload B</th></tr></thead><tbody>{{ROWS}}</tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>N</th><th>Input</th><th>Structure</th><th>Reachable B</th><th>Incremental B</th><th>Incremental B / key</th><th>Shared key payload B</th></tr></thead><tbody>{{ROWS | raw}}</tbody></table></div>
   </section>
   <footer>Generated locally with OpenJDK JOL. Offline HTML; no external scripts or services. Compare matching JVM layouts and inputs.</footer>
 </body>

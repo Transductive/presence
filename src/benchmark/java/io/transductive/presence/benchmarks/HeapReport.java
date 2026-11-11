@@ -105,13 +105,6 @@ public final class HeapReport {
     }
 
     private static void write(Path directory, List<Footprint> rows) throws Exception {
-        String template;
-        try (var stream = HeapReport.class.getResourceAsStream("/heap-report.html")) {
-            if (stream == null) {
-                throw new IllegalStateException("Missing heap report template");
-            }
-            template = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-        }
         var html = new StringBuilder();
         var csv = new StringBuilder("N,input,structure,reachable_bytes,incremental_bytes,key_payload_bytes,bloom_bits,probes\n");
         for (Footprint row : rows) {
@@ -126,9 +119,9 @@ public final class HeapReport {
                     .append(row.keyPayloadBytes()).append(',').append(row.bitSize()).append(',').append(row.probes()).append('\n');
         }
         Files.writeString(directory.resolve("heap.csv"), csv);
-        Files.writeString(directory.resolve("index.html"), template.replace("{{ENVIRONMENT}}",
-                BenchmarkReport.escape("Java " + Runtime.version() + " · " + System.getProperty("os.name")
-                        + " / " + System.getProperty("os.arch"))).replace("{{ROWS}}", html));
+        ReportTemplate.write(directory.resolve("index.html"), "heap.peb", java.util.Map.of(
+                "ENVIRONMENT", "Java " + Runtime.version() + " · " + System.getProperty("os.name")
+                        + " / " + System.getProperty("os.arch"), "ROWS", html.toString()));
     }
 
     private static String bytes(long value) {

@@ -1,7 +1,6 @@
 package io.transductive.presence.benchmarks;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -39,13 +38,6 @@ final class BenchmarkReport {
 
     static void write(Path directory, BenchmarkSettings settings, Collection<RunResult> results,
             List<Profile> profiles) throws IOException {
-        String template;
-        try (var stream = BenchmarkReport.class.getResourceAsStream("/benchmark-report.html")) {
-            if (stream == null) {
-                throw new IOException("Missing benchmark report template");
-            }
-            template = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        }
         String warning = settings.smoke()
                 ? "Smoke run — harness validation only. These short measurements are not performance evidence."
                 : settings.profile()
@@ -114,7 +106,8 @@ final class BenchmarkReport {
         if (!profiles.isEmpty()) {
             links.append("<section><h2>Flamegraphs</h2><p>Click a frame to zoom; use the graph's search to locate a method. "
                     + "Widths show the share of sampled execution stacks, not elapsed time. "
-                    + "Only stacks containing these benchmarks are included; harness frames remain visible.</p><ul class='profiles'>");
+                    + "Only io.transductive frames are shown; hidden callees still contribute to visible callers' sample widths. "
+                    + "The full JFR recordings remain available.</p><ul class='profiles'>");
             for (Profile profile : profiles) {
                 links.append("<li><strong>").append(escape(profile.label())).append("</strong><br><a href='")
                         .append(relative(directory, profile.flamegraph())).append("'>Open flamegraph</a> · <a href='")
@@ -128,13 +121,10 @@ final class BenchmarkReport {
             }
             links.append("</ul></section>");
         }
-        // Insert generated HTML last so data containing template-like text cannot replace page structure.
-        String html = template.replace("{{MODE}}", escape(settings.mode()))
-                .replace("{{ALLOCATION_AUDIT}}", allocationAudit(directory))
-                .replace("{{WARNING}}", escape(warning)).replace("{{ENVIRONMENT}}", escape(environment))
-                .replace("{{SCALING}}", scaling(groups))
-                .replace("{{PROFILES}}", links.toString()).replace("{{RESULTS}}", sections.toString());
-        Files.writeString(directory.resolve("index.html"), html);
+        ReportTemplate.write(directory.resolve("index.html"), "benchmark.peb", Map.of(
+                "MODE", settings.mode(), "WARNING", warning, "ENVIRONMENT", environment,
+                "ALLOCATION_AUDIT", allocationAudit(directory), "SCALING", scaling(groups),
+                "PROFILES", links.toString(), "RESULTS", sections.toString()));
     }
 
     private static String scaling(Map<Workload, List<RunResult>> groups) {

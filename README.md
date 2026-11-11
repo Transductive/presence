@@ -178,6 +178,10 @@ Start with `mise tasks ls` (or `mise run`) to list the available commands:
 | `mise run benchmark:misses` | Compare absent lookups with hot and broad query pools across all five sizes. |
 | `mise run benchmark:prefilter` | Measure Bloom plus exact verification, including false positives. |
 | `mise run benchmark:heap` | Compare reachable heap and memory added beyond shared input keys. |
+| `mise run benchmark:large` | Compare standard and experimental blocked Bloom with JDK collections at 1,000, 10 million, and 50 million keys. |
+| `mise run benchmark:large:accuracy` | Calibrate blocked sizing or check held-out false-positive rates. |
+| `mise run benchmark:large:heap` | Measure the large benchmark's retained query-pool memory. |
+| `mise run benchmark:review` | Turn your saved large runs into a combined browser review. |
 
 These commands work without shell activation. Arguments after `--` go to Gradle:
 

@@ -35,7 +35,7 @@
     <p>Presence Bloom hashing strategies vs. JDK HashSet and HashMap</p>
     <p class="meta">{{ENVIRONMENT}}</p>
     <p class="notice">{{WARNING}}</p>
-    {{ALLOCATION_AUDIT}}
+    {{ALLOCATION_AUDIT | raw}}
     <p><a href="results.json">Raw JMH JSON</a> · <a href="run.txt">Run settings</a> · Mode: {{MODE}}</p>
   </header>
   <section>
@@ -49,9 +49,9 @@
     <p>Unmarked lookup tables use ASCII keys. LATIN1 includes accented characters; UNICODE includes CJK and emoji; MALFORMED contains unpaired surrogates; LONG_UNICODE adds a 2,560-byte UTF-8 prefix. Input kinds are shown separately, and all encoding work happens inside the measured lookup.</p>
     <p>Allocation is bytes allocated per operation from JMH's GC profiler, <strong>not retained heap size</strong>. Run benchmark:heap for a separate live object graph comparison. Bars use a separate linear scale for each table. Error is JMH's 99.9% confidence half-width; n/a means insufficient observations. A Bloom filter's space advantage does not imply a lookup-latency crossover against a cached-hash table.</p>
   </section>
-  {{SCALING}}
-  {{PROFILES}}
-  {{RESULTS}}
+  {{SCALING | raw}}
+  {{PROFILES | raw}}
+  {{RESULTS | raw}}
   <footer>Generated locally with JMH. Offline HTML; no external scripts or services. Keep raw JSON when comparing runs across machines or revisions.</footer>
 </body>
 </html>
