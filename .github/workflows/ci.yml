@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   build:
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -19,7 +20,8 @@ jobs:
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: 2026.11.6
-      - name: Build and test
+      - name: Lint GitHub Actions workflows
+        if: matrix.os == 'ubuntu-latest'
+        run: mise run ci:lint
+      - name: Build library and run unit tests
         run: mise run ci
-      - name: Build and verify documentation website
-        run: mise run site:check

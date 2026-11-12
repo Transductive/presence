@@ -21,6 +21,36 @@ Use `mise where java` for the JDK installation directory. `mise exec -- java -ve
 mise run test -- --tests '*BloomFilterTest'
 ```
 
+## Check CI locally
+
+```sh
+mise run ci                # Clean Gradle build on your host
+mise run ci:lint           # Validate GitHub Actions workflows
+mise run ci:local -- --list # List the selected job without running it
+mise run ci:local          # Run the Ubuntu job in Docker
+```
+
+Mise installs pinned actionlint and act versions only when their tasks run.
+For a container run, install and start [Docker](https://nektosact.com/installation/index.html#docker)
+and check that `docker info` succeeds. Windows must use Linux containers.
+The first run downloads the runner image, actions, and build tools. Docker is
+optional for everyday library development and workflow linting.
+Unlike `--list`, act's `--dryrun` also needs a Docker connection.
+
+The local runner lints first, then runs the Ubuntu matrix entry of the build
+workflow against your working tree, compiling and packaging the library and
+running its unit tests. Benchmark compilation, fixture tests, and timed runs
+are excluded from regular builds and CI; `mise run benchmark:check` runs the
+fixture checks manually. Website verification runs in the separate Pages workflow.
+Its Ubuntu 26.04 amd64 image uses emulation on Apple Silicon. GitHub still checks
+the Windows and macOS jobs and performs Pages deployment. Local containers are
+an approximation of hosted runners; act does not reproduce GitHub's permissions,
+OIDC, or deployment environments. See the [act documentation](https://nektosact.com/).
+
+The build does not need repository secrets. For GitHub API rate limits, use
+`mise run ci:local -- --secret GITHUB_TOKEN` and enter a token at the prompt.
+Optional root `.secrets`, `.env`, and `.vars` files stay out of Git.
+
 ## Work on the website
 
 ```sh

@@ -4,7 +4,7 @@
 java = "temurin-21.0.13+9.0.LTS"
 zola = "0.23.6"
 
-# Extra arguments to `mise run <task> -- ...` are forwarded to Gradle.
+# Extra arguments to `mise run <task> -- ...` are forwarded to the task's command.
 [tasks.default]
 description = "List available development commands"
 run = "mise tasks ls"
@@ -40,15 +40,35 @@ run = "sh ./gradlew build publishToMavenLocal"
 run_windows = "cmd /d /c gradlew.bat build publishToMavenLocal"
 
 [tasks.ci]
-description = "Run a clean build with the same command used in CI"
+description = "Clean, package the library, and run unit tests (no benchmark tasks)"
 # One Gradle invocation keeps clean and build ordered.
 run = "sh ./gradlew --no-daemon clean build"
 run_windows = "cmd /d /c gradlew.bat --no-daemon clean build"
+
+[tasks."ci:lint"]
+description = "Validate GitHub Actions workflows with actionlint (no Docker needed)"
+tools = { "aqua:rhysd/actionlint" = "1.7.12" }
+# Keep results consistent even when optional shellcheck/pyflakes are on PATH.
+run = "actionlint -shellcheck= -pyflakes="
+
+[tasks."ci:local"]
+description = "Run the Ubuntu CI job with act (requires Docker running Linux containers)"
+depends = ["ci:lint"]
+tools = { "aqua:nektos/act" = "0.2.97" }
+raw = true
+# Restrict execution to the build workflow and one matrix entry; Pages stays on GitHub.
+# amd64 matches the hosted Ubuntu job, including on Apple Silicon via emulation.
+run = "act push --workflows .github/workflows/ci.yml --job build --matrix os:ubuntu-latest --platform ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-26.04 --container-architecture linux/amd64"
 
 [tasks.gradle]
 description = "Run any Gradle command (mise run gradle -- dependencies)"
 run = "sh ./gradlew"
 run_windows = "cmd /d /c gradlew.bat"
+
+[tasks."benchmark:check"]
+description = "Manually compile the benchmark harness and run its fixture tests"
+run = "sh ./gradlew benchmarkTest"
+run_windows = "cmd /d /c gradlew.bat benchmarkTest"
 
 [tasks.benchmark]
 description = "Run JMH comparisons and print the browser report URL"

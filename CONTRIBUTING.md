@@ -19,6 +19,12 @@ commands. Developer commands live in `mise.toml`, separate from the build
 definition in `build.gradle.kts`. Gradle owns compilation, test execution, and
 incremental builds; mise provides the shared command interface.
 
+When changing GitHub Actions workflows, run `mise run ci:lint`. If you have
+Docker running Linux containers, `mise run ci:local` also runs the Ubuntu CI job
+against your working tree. Mise installs the pinned tooling on demand; Docker
+is optional for other development. See the
+[local CI guide](README.md#test-workflow-changes-locally) for setup and limitations.
+
 To run one test method or pass another Gradle option:
 
 ```sh
@@ -71,8 +77,11 @@ wrapper. Commit both scripts, the wrapper JAR, and its properties together.
 ## Benchmarks
 
 Benchmark sources are in `src/benchmark/java`, with fixture checks in
-`src/benchmarkTest/java`. `mise run build` runs these checks without running timed
-benchmarks. See [Benchmarking](docs/benchmarking.md) before changing workloads.
+`src/benchmarkTest/java`. Run `mise run benchmark:check` explicitly to compile
+the harness and verify its fixtures. Regular builds and CI only package the
+library and run its unit tests. Benchmarks remain manual until a dedicated
+comment-triggered workflow is added. See [Benchmarking](docs/benchmarking.md)
+before changing workloads.
 
 Run `mise run benchmark:smoke` after changing the harness. Use
 `mise run benchmark` for comparisons and `mise run benchmark:flamegraph` to
