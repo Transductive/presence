@@ -45,9 +45,11 @@ parameters multiplies cases, so use focused includes when adding dimensions.
 Smoke mode validates execution
 and report generation; it is not a performance measurement suitable for claims.
 
-Normal `build`, `test`, and `ci` commands do not execute timed benchmarks.
-`build` and `ci` compile the harness and run its fixture tests. To run just those
-checks, use `mise run gradle -- benchmarkTest`.
+Normal `build`, `check`, `test`, and `ci` commands only build the library and/or
+run its unit tests. They do not compile benchmark sources, verify benchmark
+fixtures, or execute timed benchmarks. Run `mise run benchmark:check` explicitly
+to compile the harness and run fixture tests. All benchmark commands are manual;
+there is no comment-triggered CI workflow yet.
 
 ## Open the reports
 
@@ -305,8 +307,9 @@ Use `-PbenchmarkQueryModes=CACHED,FRESH` to include both modes.
 Full timing uses two forks, three one-second warmups, and
 five one-second measurements. Each fork starts with 512 MiB and may grow to
 10 GiB; override the maximum with `-PbenchmarkMaxHeap=...`. Construction at
-large N adds substantial time beyond the measured iterations. Normal builds
-run fixture tests, not these experiments.
+large N adds substantial time beyond the measured iterations. Fixture tests
+are available through `mise run benchmark:check`; both those tests and these
+experiments are excluded from normal builds and CI.
 
 Each trial constructs only the selected contender. Insertion IDs generate
 unique strings deterministically, without retaining a separate key array.

@@ -47,7 +47,8 @@ dependencies {
     add(benchmark.runtimeOnlyConfigurationName, "org.slf4j:slf4j-nop:2.0.18")
 }
 
-val benchmarkTestTask = tasks.register<Test>("benchmarkTest") {
+// Benchmark verification is explicit; regular build/check/ci run library tests only.
+tasks.register<Test>("benchmarkTest") {
     description = "Verify benchmark fixtures and parameter validation without measuring performance."
     group = "verification"
     testClassesDirs = benchmarkTest.output.classesDirs
@@ -56,7 +57,6 @@ val benchmarkTestTask = tasks.register<Test>("benchmarkTest") {
     jvmArgs("-Djdk.attach.allowAttachSelf=true", "-XX:+EnableDynamicAgentLoading")
     useJUnitPlatform()
 }
-tasks.check { dependsOn(benchmarkTestTask) }
 
 val benchmarkLauncher = javaToolchains.launcherFor {
     languageVersion.set(JavaLanguageVersion.of(21))

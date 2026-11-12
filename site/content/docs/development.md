@@ -38,7 +38,10 @@ optional for everyday library development and workflow linting.
 Unlike `--list`, act's `--dryrun` also needs a Docker connection.
 
 The local runner lints first, then runs the Ubuntu matrix entry of the build
-workflow against your working tree, including unit tests and site verification.
+workflow against your working tree, compiling and packaging the library and
+running its unit tests. Benchmark compilation, fixture tests, and timed runs
+are excluded from regular builds and CI; `mise run benchmark:check` runs the
+fixture checks manually. Website verification runs in the separate Pages workflow.
 Its Ubuntu 26.04 amd64 image uses emulation on Apple Silicon. GitHub still checks
 the Windows and macOS jobs and performs Pages deployment. Local containers are
 an approximation of hosted runners; act does not reproduce GitHub's permissions,

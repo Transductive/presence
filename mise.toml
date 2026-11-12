@@ -40,7 +40,7 @@ run = "sh ./gradlew build publishToMavenLocal"
 run_windows = "cmd /d /c gradlew.bat build publishToMavenLocal"
 
 [tasks.ci]
-description = "Run a clean build with the same command used in CI"
+description = "Clean, package the library, and run unit tests (no benchmark tasks)"
 # One Gradle invocation keeps clean and build ordered.
 run = "sh ./gradlew --no-daemon clean build"
 run_windows = "cmd /d /c gradlew.bat --no-daemon clean build"
@@ -64,6 +64,11 @@ run = "act push --workflows .github/workflows/ci.yml --job build --matrix os:ubu
 description = "Run any Gradle command (mise run gradle -- dependencies)"
 run = "sh ./gradlew"
 run_windows = "cmd /d /c gradlew.bat"
+
+[tasks."benchmark:check"]
+description = "Manually compile the benchmark harness and run its fixture tests"
+run = "sh ./gradlew benchmarkTest"
+run_windows = "cmd /d /c gradlew.bat benchmarkTest"
 
 [tasks.benchmark]
 description = "Run JMH comparisons and print the browser report URL"
