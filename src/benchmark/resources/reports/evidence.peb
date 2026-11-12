@@ -1,0 +1,16 @@
+<section>
+  <h2>{{ evidenceTitle }} · N = {{ evidence.n }}</h2>
+  <p>{{ evidence.rule }}. Matching margin: ±{{ evidence.margin }} percentage points.</p>
+  {% if evidence.reference %}<p class="notice">Reference only: this size does not establish large-N equivalence.</p>{% endif %}
+  {% set headers = ["Strategy", "Layout", "Bits/key", "Probes", "Payload MiB", "FPR (%)", "95% Wilson interval (%)", "False positives / misses"] %}
+  {% set rows = evidence.rates %}{% include "table.peb" %}
+  <h3>Blocked minus standard</h3>
+  <p>Matching requires the entire conservative difference interval inside the margin. This is approximately 95% coverage per strategy/size comparison, not one simultaneous guarantee over the whole review. A failed gate means equivalence was not established.</p>
+  {% set headers = ["Strategy", "FPR difference", "Difference interval (~95%)", "Matching gate"] %}
+  {% set rows = evidence.differences %}{% include "table.peb" %}
+  <h3>False negatives and lookup allocation</h3>
+  <p>These audits cover warmed Bloom lookups on pre-existing absent Strings. They exclude input construction and retained query storage.</p>
+  {% set headers = ["Strategy", "Layout", "False negatives / inserted checked", "Allocated bytes", "Audited lookups"] %}
+  {% set rows = evidence.audits %}{% include "table.peb" %}
+  <p><a href="{{ evidence.link }}">Raw evidence JSON</a></p>
+</section>

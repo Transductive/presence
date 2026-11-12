@@ -1,0 +1,10 @@
+{
+  "title": "Membership, measured.",
+  "runs": [
+    "build/reports/benchmarks/YOUR-RUN-DIRECTORY"
+  ],
+  "accuracy": [],
+  "calibrations": [],
+  "queryPools": [],
+  "notes": []
+}

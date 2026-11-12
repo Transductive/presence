@@ -1,0 +1,19 @@
+<section>
+  <h2>{{ panel.title }}</h2>
+  <p class="wrap">Run: {{ panel.run }}. {{ panel.pool }} retained query payloads.</p>
+  {% if panel.smoke %}<p class="notice">Smoke run: harness wiring only; not performance evidence.</p>{% endif %}
+  <p>Operation: {% if panel.fresh %}construct a fresh String, then check membership. Timing and allocation include construction.{% else %}check membership using a reused String with its Java hash already computed.{% endif %}
+  {% if panel.reference %}N=1,000 is a reference point; equal false-positive rates are not assumed.{% endif %}</p>
+  <div class="scroll"><svg viewBox="0 0 920 {{ panel.height }}" role="img" aria-label="{{ panel.title }}: time per operation, lower is better">
+    {% for bar in panel.bars %}
+    <g transform="translate(0,{{ bar.y }})">
+      <text x="0" y="16">{{ bar.label }}</text>
+      <rect x="250" y="0" width="{{ bar.width }}" height="23" fill="{{ bar.shade }}"/>
+      <path d="M{{ bar.low }},11.5H{{ bar.high }} M{{ bar.low }},6V17 M{{ bar.high }},6V17" fill="none" stroke="#000"/>
+      <text x="780" y="16">{{ bar.score }} ns</text>
+    </g>
+    {% endfor %}
+  </svg></div>
+  {% set headers = ["Implementation", "ns / operation", "± error (99.9%)", "Allocated B / operation", "Fork means (ns)"] %}
+  {% set rows = panel.rows %}{% include "table.peb" %}
+</section>

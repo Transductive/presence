@@ -1,0 +1,21 @@
+.gradle/
+build/
+out/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
+mise.local.toml
+
+# Reports are generated locally; editable templates use the .peb extension.
+*.html
+*.htm
+benchmark-review.local.json
+
+# Editable Zola templates are source; generated site HTML remains under build/.
+!site/templates/**/*.html
+!site/themes/devlab-theme/templates/**/*.html
+site/public/

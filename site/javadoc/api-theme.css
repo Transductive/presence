@@ -1,0 +1,100 @@
+/* Javadoc owns markup, navigation, and search. These are presentation overrides. */
+@font-face {
+    font-family: "Bodoni Moda";
+    src: url("../fonts/BodoniModa.ttf") format("truetype");
+    font-weight: 400 900;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("../fonts/IBMPlexMono-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-display: swap;
+}
+
+:root {
+    --body-background-color: #f8f6f1;
+    --body-text-color: #090908;
+    --block-text-color: #090908;
+    --body-font-family: system-ui,sans-serif;
+    --block-font-family: system-ui,sans-serif;
+    --code-font-family: "IBM Plex Mono",monospace;
+    --navbar-background-color: #090908;
+    --navbar-text-color: #f8f6f1;
+    --subnav-background-color: #eeece6;
+    --selected-background-color: #db2913;
+    --selected-text-color: white;
+    --selected-link-color: white;
+    --table-header-color: #e2dfd8;
+    --even-row-color: #eeece6;
+    --odd-row-color: #f8f6f1;
+    --section-background-color: #eeece6;
+    --detail-background-color: #f8f6f1;
+}
+
+body {
+    background: #f8f6f1;
+    color: #090908;
+    font-family: system-ui,sans-serif;
+}
+
+a:link,a:visited {
+    color: #a81d0c;
+}
+
+.top-nav {
+    background: #090908;
+    color: #f8f6f1;
+}
+
+.top-nav a:link,.top-nav a:visited {
+    color: #f8f6f1;
+}
+
+.sub-nav {
+    background: #eeece6;
+}
+
+.nav-bar-cell1-rev {
+    background: #db2913;
+    color: white;
+}
+
+.title {
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-size: 2rem;
+    color: #090908;
+}
+
+code,pre,.member-signature {
+    font-family: "IBM Plex Mono",monospace;
+}
+
+.caption span,.table-tabs>button.active-table-tab {
+    background: #090908;
+    color: #f8f6f1;
+}
+
+.table-tabs>button {
+    background: #eeece6;
+    color: #090908;
+}
+
+.summary section,.details section,.summary-table {
+    border-color: #d4d1ca;
+    background: #f8f6f1;
+}
+
+.even-row-color {
+    background: #eeece6;
+}
+
+.odd-row-color {
+    background: #f8f6f1;
+}
+
+a:focus-visible,button:focus-visible,input:focus-visible {
+    outline: 2px solid #db2913;
+    outline-offset: 3px;
+}

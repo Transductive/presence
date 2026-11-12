@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Presence · Benchmark review</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; color: #161616; background: #f5f5f5; }
+    body { max-width: 1140px; margin: auto; padding: 40px 24px 72px; }
+    header { border-top: 5px solid #111111; padding-top: 24px; margin-bottom: 32px; }
+    .brand { color: #111111; font-size: 13px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
+    h1 { font-size: clamp(30px, 5vw, 48px); letter-spacing: -.04em; line-height: 1.15; margin: 12px 0; }
+    h2 { font-size: 20px; margin: 0 0 16px; }
+    h3 { font-size: 15px; margin: 24px 0 8px; }
+    p { margin: 10px 0; } a { color: #111111; text-underline-offset: 3px; }
+    .meta { color: #626262; font-size: 14px; }
+    .notice { padding: 14px 18px; background: #eaeaea; border-left: 4px solid #111111; }
+    section { background: white; border: 1px solid #dddddd; border-radius: 10px; padding: 24px; margin: 20px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .table-wrap { overflow-x: auto; }
+    .scaling-table thead th { white-space: normal; min-width: 100px; line-height: 1.4; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid #e8e8e8; text-align: right; white-space: nowrap; }
+    th:first-child { text-align: left; } thead th { color: #626262; font-weight: 500; }
+    tr:last-child td, tr:last-child th { border-bottom: 0; }
+    .bar-cell { width: 22%; min-width: 120px; text-align: left; }
+    .bar { display: block; background: #222222; height: 12px; border-radius: 2px; min-width: 2px; }
+    .profiles { padding-left: 20px; } .profiles li { padding: 10px 0; overflow-wrap: anywhere; }
+    footer { color: #626262; font-size: 14px; margin-top: 28px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Transductive / Presence</div>
+    <h1>Membership, measured.</h1>
+    <p>Presence Bloom hashing strategies vs. JDK HashSet and HashMap</p>
+    <p class="meta">{{ENVIRONMENT}}</p>
+    <p class="notice">{{WARNING}}</p>
+    {{ALLOCATION_AUDIT | raw}}
+    <p><a href="results.json">Raw JMH JSON</a> · <a href="run.txt">Run settings</a> · Mode: {{MODE}}</p>
+  </header>
+  <section>
+    <h2>Read the comparison</h2>
+    <p>Lookup: one query into a prebuilt structure. Construction: allocate and populate a fresh structure with all N keys.</p>
+    <p>Bloom uses a 1% target false-positive rate; HashSet and HashMap answer exactly. Core lookup tables time membership alone. Prefilter tables time the complete exact answer, including downstream verification after every Bloom positive. All structures receive the same deterministic string data.</p>
+    <p>N is the number of stored keys. HOT uses 4,096 prebuilt, shuffled queries. BROAD uses the next power of two at least max(65,536, N); each table states the actual pool size. Both repeat their pool and access it sequentially after shuffling: BROAD means a larger working set, not guaranteed cold caches or random DRAM latency. Hits use equal strings with different identity and backing storage.</p>
+    <p>Unmarked tables use HOT and CACHED queries with Java string hashes computed during setup. FRESH creates a new String from prepared characters inside every measured operation, equally for Bloom and JDK collections. Its hash starts uncached, and <strong>its time and allocated bytes include query construction</strong>; those allocations are distinct from allocation inside the Bloom membership call. Bloom's UTF-8 processing and hashing are always timed.</p>
+    <p>Murmur3 uses a 128-bit hash. Rapidhash v3, Nano v3, and Komihash produce two seeded hashes for double-hashed probes; an absent lookup may short-circuit before further hash/probe work. SHA-256 reuses a digest instance and output buffer. Rapidhash and Nano share their path for inputs up to 48 encoded bytes.</p>
+    <p>Prefilter downstream work is JMH consumeCPU(tokens), followed by the same exact HashMap lookup. Tokens are synthetic CPU work, not nanoseconds, network, or database latency; zero tokens isolates an in-memory backing map. False positives pay the full verification cost. Downstream-call percentages and observed false positives among absent queries come from JMH event counters; both paths include counter overhead. Compare these timings within the prefilter tables.</p>
+    <p>Unmarked lookup tables use ASCII keys. LATIN1 includes accented characters; UNICODE includes CJK and emoji; MALFORMED contains unpaired surrogates; LONG_UNICODE adds a 2,560-byte UTF-8 prefix. Input kinds are shown separately, and all encoding work happens inside the measured lookup.</p>
+    <p>Allocation is bytes allocated per operation from JMH's GC profiler, <strong>not retained heap size</strong>. Run benchmark:heap for a separate live object graph comparison. Bars use a separate linear scale for each table. Error is JMH's 99.9% confidence half-width; n/a means insufficient observations. A Bloom filter's space advantage does not imply a lookup-latency crossover against a cached-hash table.</p>
+  </section>
+  {{SCALING | raw}}
+  {{PROFILES | raw}}
+  {{RESULTS | raw}}
+  <footer>Generated locally with JMH. Offline HTML; no external scripts or services. Keep raw JSON when comparing runs across machines or revisions.</footer>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Presence · Heap review</title>
+  <style>
+    :root{color-scheme:light;font:16px/1.6 system-ui,sans-serif;color:#161616;background:#f5f5f5}
+    body{max-width:1240px;margin:auto;padding:40px 24px 72px}header{border-top:5px solid #111;padding-top:24px}
+    .brand{font-size:13px;font-weight:750;letter-spacing:.13em;text-transform:uppercase}
+    h1{font-size:clamp(30px,5vw,48px);letter-spacing:-.04em;line-height:1.15}h2{font-size:20px}
+    section{background:#fff;border:1px solid #ddd;border-radius:10px;padding:24px;margin:20px 0}
+    a{color:#111}.meta,footer{color:#626262;font-size:14px}.notice{background:#eaeaea;padding:14px 18px;border-left:4px solid #111}
+    .table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+    th,td{padding:12px 10px;border-bottom:1px solid #e8e8e8;text-align:right;white-space:nowrap}
+    th{text-align:left}thead th{white-space:normal;color:#626262;font-weight:500;min-width:100px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Transductive / Presence</div>
+    <h1>Membership, in memory.</h1>
+    <p class="meta">{{ENVIRONMENT}}</p>
+    <p class="notice">Live object graph footprints, measured separately from lookup allocation and timing.</p>
+    <p><a href="heap.csv">Raw byte counts</a> · <a href="run.txt">JVM layout and settings</a></p>
+  </header>
+  <section>
+    <h2>Read the comparison</h2>
+    <p><strong>Reachable B</strong> counts distinct objects reachable from each structure using OpenJDK JOL. HashSet and HashMap include stored String objects and backing arrays. Bloom's workspace does not retain supplied keys.</p>
+    <p><strong>Incremental B</strong> is size(keys ∪ structure) − size(keys): the additional reachable bytes when the caller already owns the same String[] and key payload. The same baseline is used for every row, including Bloom. Shared objects are counted once within each union. The key payload column excludes the caller's String[] container.</p>
+    <p>Reachability is <strong>not exclusive retained heap</strong>: shared strategy objects, collection sentinels, and helpers may be reachable elsewhere. These are graph footprints on this JVM, not dominator analysis, process RSS, peak setup memory, GC overhead, or allocation per operation. JOL's agent supplies Instrumentation object sizes; traversal deduplicates by object identity and does not use estimated object addresses. JOL and query fixtures are outside the measured roots; sizing method, JVM arguments, and layout details are recorded with the run.</p>
+    <p>All structures contain the same N keys. Bloom targets a 1% false-positive rate and uses rapidhash v3. Hash collections answer exactly. Bloom + HashMap measures their combined graph without double counting shared objects: a prefilter adds memory when the exact backing map remains in process.</p>
+  </section>
+  <section>
+    <h2>Footprint across stored-key counts</h2>
+    <div class="table-wrap"><table><thead><tr><th>N</th><th>Input</th><th>Structure</th><th>Reachable B</th><th>Incremental B</th><th>Incremental B / key</th><th>Shared key payload B</th></tr></thead><tbody>{{ROWS | raw}}</tbody></table></div>
+  </section>
+  <footer>Generated locally with OpenJDK JOL. Offline HTML; no external scripts or services. Compare matching JVM layouts and inputs.</footer>
+</body>
+</html>
