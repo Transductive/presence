@@ -327,6 +327,12 @@ a:focus-visible,button:focus-visible,select:focus-visible {
     min-width: 0;
 }
 
+.example-panel {
+    width: max-content;
+    max-width: 100%;
+    justify-self: center;
+}
+
 .panel-label {
     display: flex;
     justify-content: space-between;
@@ -571,7 +577,7 @@ a:focus-visible,button:focus-visible,select:focus-visible {
         flex-wrap: wrap;
     }
     .first-look,.sizing-section {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0,1fr);
         padding: 48px 0;
         gap: 24px;
     }
