@@ -160,6 +160,24 @@ var sha = BloomFilter.forStrings(10_000, 0.01, HashingStrategy.SHA_256);
 
 ## Develop with Presence
 
+### Documentation website
+
+The website uses **Zola + DevLab**, styled with Transductive's *Theory Meets the
+Machine* editorial system. It combines Markdown guides, local browser search,
+and an API reference generated from Java source comments.
+
+```sh
+mise run site:serve
+```
+
+Open **http://127.0.0.1:8787/**. Stop with Ctrl+C; restart after editing to rebuild.
+Use `mise run site:build` for the static artifact in `build/site/` and
+`mise run site:check` to verify internal links, anchors, and assets. See the
+[website authoring guide](site/README.md) for content and hosting configuration.
+Generated pages remain ignored; editable site and theme templates are tracked.
+
+### Developer commands
+
 Start with `mise tasks ls` (or `mise run`) to list the available commands:
 
 | Command | What it does |

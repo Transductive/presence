@@ -1,0 +1,602 @@
+@font-face {
+    font-family: "Bodoni Moda";
+    src: url("fonts/BodoniModa.ttf") format("truetype");
+    font-weight: 400 900;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: Anton;
+    src: url("fonts/Anton-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("fonts/IBMPlexMono-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("fonts/IBMPlexMono-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-display: swap;
+}
+
+/* Transductive Editorial System v0.1, Figma node 5:212. */
+:root,:root[data-theme] {
+    color-scheme: light;
+    --ink: #090908;
+    --paper: #f8f6f1;
+    --signal: #db2913;
+    --quiet: #68665f;
+    --color-bg: var(--paper);
+    --color-fg: var(--ink);
+    --color-muted: var(--quiet);
+    --color-surface: #eeece6;
+    --color-border: #d4d1ca;
+    --color-accent: var(--signal);
+    --color-accent-contrast: #fff;
+    --color-code-bg: #eeece6;
+    --color-code-fg: var(--ink);
+    --color-pre-bg: #f0eee8;
+    --color-pre-fg: var(--ink);
+    --color-pre-scheme: light;
+    --font-mono: "IBM Plex Mono",Consolas,monospace;
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-pill: 0;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --site-width: 78rem;
+    --header-width: 90rem;
+}
+
+body {
+    background: var(--paper);
+}
+
+a:focus-visible,button:focus-visible,select:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 5px;
+}
+
+.site-header {
+    background: var(--paper);
+}
+
+.presence-brand {
+    gap: 14px;
+}
+
+.brand-company {
+    font-family: Anton,sans-serif;
+    font-weight: 400;
+    font-size: 21px;
+    letter-spacing: .01em;
+}
+
+.brand-company span {
+    color: var(--signal);
+    font-family: var(--font-mono);
+    padding-left: 8px;
+}
+
+.presence-brand .site-logo-text {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 400;
+}
+
+.site-nav,.site-footer,.docs-sidebar,.docs-toc {
+    font-family: var(--font-mono);
+}
+
+.site-nav {
+    font-size: 12px;
+}
+
+.site-footer-note {
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-size: 20px;
+    color: var(--ink);
+}
+
+.page-heading h1,.page-title,.docs-content h1 {
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-weight: 700;
+    letter-spacing: -.035em;
+}
+
+.docs-content h2 {
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-size: 30px;
+    letter-spacing: -.025em;
+}
+
+.docs-content h3 {
+    font-family: var(--font-mono);
+    font-size: 18px;
+}
+
+.docs-content .content {
+    line-height: 1.8;
+}
+
+.docs-content code {
+    font-size: .88em;
+}
+
+.presence-home {
+    max-width: 78rem;
+    margin-inline: auto;
+    padding: 0 3rem;
+}
+
+.edition,.eyebrow,.panel-label,.hero-caption,.release-note,.code-note,.sizing-note,.answer-key dt {
+    font-family: var(--font-mono);
+}
+
+.edition {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 10px;
+    letter-spacing: .06em;
+    padding: 28px 0 52px;
+    border-top: 1px solid var(--ink);
+    margin-top: 24px;
+}
+
+.eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    color: var(--signal);
+    line-height: 1.5;
+}
+
+.hero-composition {
+    display: grid;
+    grid-template-columns: minmax(0,1.65fr) minmax(240px,.8fr);
+    gap: 3rem;
+    align-items: end;
+}
+
+.presence-hero h1 {
+    margin: 20px 0 0;
+    letter-spacing: -.045em;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.presence-hero h1 span {
+    display: block;
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-weight: 500;
+    font-size: clamp(42px,5.2vw,72px);
+    margin-bottom: 22px;
+}
+
+.presence-hero h1 strong {
+    display: block;
+    font-family: Anton,Impact,sans-serif;
+    font-size: clamp(70px,9vw,126px);
+    font-weight: 400;
+    line-height: 1.03;
+    letter-spacing: -.02em;
+}
+
+.hero-aside {
+    max-width: 330px;
+    padding-bottom: 6px;
+}
+
+.hero-deck {
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-size: 30px;
+    line-height: 1.25;
+    margin-bottom: 24px;
+    letter-spacing: -.02em;
+}
+
+.hero-aside>p:not(.hero-deck):not(.release-note) {
+    font-size: 15px;
+    line-height: 1.75;
+}
+
+.presence-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    font: 700 12px var(--font-mono);
+    padding: 17px 20px;
+    margin-top: 28px;
+    text-decoration: none;
+}
+
+.presence-button:hover {
+    background: var(--signal);
+    border-color: var(--signal);
+    color: white;
+}
+
+.text-link {
+    display: inline-block;
+    font: 700 12px var(--font-mono);
+    text-decoration: underline;
+    text-underline-offset: 5px;
+    margin-top: 20px;
+    color: var(--ink);
+}
+
+.release-note {
+    font-size: 9px;
+    color: var(--quiet);
+    letter-spacing: .02em;
+    margin-top: 25px;
+}
+
+.hero-rule {
+    height: 2px;
+    background: linear-gradient(to right,var(--ink) 82%,var(--signal) 82%);
+    margin-top: 55px;
+}
+
+.hero-caption {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 9px;
+    letter-spacing: .05em;
+    margin-top: 14px;
+}
+
+.first-look,.sizing-section {
+    display: grid;
+    grid-template-columns: .9fr 1.25fr;
+    gap: 4rem;
+    padding: 82px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.section-intro h2,.notes-heading h2 {
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-weight: 500;
+    letter-spacing: -.035em;
+    font-size: 38px;
+    line-height: 1.2;
+    margin: 20px 0;
+}
+
+.section-intro>p:not(.eyebrow) {
+    max-width: 370px;
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.answer-key {
+    margin-top: 26px;
+    font-size: 14px;
+}
+
+.answer-key>div {
+    display: flex;
+    gap: 20px;
+    border-top: 1px solid var(--color-border);
+    padding: 12px 0;
+}
+
+.answer-key dt {
+    font-weight: 700;
+    min-width: 45px;
+}
+
+.answer-key dd {
+    margin: 0;
+}
+
+.example-panel,.sizing-panel {
+    border: 1px solid var(--ink);
+    padding: 24px;
+    align-self: start;
+}
+
+.panel-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--signal);
+    font-weight: 700;
+    letter-spacing: .03em;
+    margin-bottom: 24px;
+}
+
+.example-panel .content pre {
+    border: 0;
+    background: transparent;
+    margin: 0;
+    padding: 8px 0 24px;
+    font-size: 12px;
+    line-height: 1.9;
+}
+
+.example-panel .code-note {
+    font-size: 10px;
+    color: var(--quiet);
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+    margin: 0;
+}
+
+.sizing-section {
+    padding-top: 70px;
+    padding-bottom: 70px;
+}
+
+#sizing-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 24px;
+}
+
+#sizing-form label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    grid-row: 1;
+}
+
+#sizing-form select {
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--paper);
+    font: 14px var(--font-mono);
+    padding: 12px;
+    color: var(--ink);
+}
+
+.sizing-result {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 24px;
+    border-top: 1px solid var(--ink);
+    margin-top: 28px;
+    padding-top: 24px;
+}
+
+.sizing-result>p {
+    margin: 0;
+}
+
+.sizing-result output {
+    display: block;
+    font-family: Anton,sans-serif;
+    font-size: 44px;
+    line-height: 1.1;
+}
+
+.sizing-result>p>span {
+    font: 10px var(--font-mono);
+    display: block;
+    margin-top: 10px;
+    color: var(--signal);
+}
+
+.sizing-result dl {
+    font: 11px var(--font-mono);
+    margin: 0;
+}
+
+.sizing-result dl>div {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 0 10px;
+    gap: 10px;
+}
+
+.sizing-result dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.sizing-note {
+    font-size: 9px;
+    line-height: 1.7;
+    color: var(--quiet);
+    margin: 22px 0 0;
+}
+
+.field-notes {
+    padding: 66px 0 72px;
+}
+
+.notes-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 30px;
+}
+
+.notes-heading h2 {
+    max-width: 570px;
+    margin-bottom: 0;
+}
+
+.notes-heading p {
+    font: 11px/1.8 var(--font-mono);
+    margin: 0;
+    color: var(--quiet);
+}
+
+.notes-grid {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    border-top: 1px solid var(--ink);
+}
+
+.notes-grid>a {
+    position: relative;
+    color: var(--ink);
+    padding: 28px 26px 55px 0;
+    text-decoration: none;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.notes-grid>a+a {
+    border-left: 1px solid var(--color-border);
+    padding-left: 26px;
+}
+
+.notes-grid h3 {
+    font-family: "Bodoni Moda",Georgia,serif;
+    font-size: 27px;
+    font-weight: 500;
+    margin: 28px 0 12px;
+}
+
+.notes-grid p {
+    font-size: 14px;
+    line-height: 1.8;
+    margin: 0;
+}
+
+.notes-grid a:hover h3 {
+    text-decoration: underline;
+    text-decoration-color: var(--signal);
+    text-underline-offset: 6px;
+}
+
+.note-arrow {
+    position: absolute;
+    bottom: 17px;
+    right: 26px;
+    color: var(--signal);
+    font-size: 24px;
+}
+
+@media(max-width:1000px) {
+    .hero-composition {
+        gap: 2rem;
+        grid-template-columns: 1.3fr 1fr;
+    }
+    .presence-home {
+        padding: 0 2rem;
+    }
+    .first-look,.sizing-section {
+        gap: 2rem;
+    }
+    .presence-hero h1 strong {
+        font-size: 9vw;
+    }
+    .section-intro h2 {
+        font-size: 33px;
+    }
+    .hero-deck {
+        font-size: 26px;
+    }
+}
+
+@media(max-width:700px) {
+    .presence-home {
+        padding: 0 20px;
+    }
+    .edition {
+        font-size: 8px;
+        padding: 22px 0 35px;
+        flex-wrap: wrap;
+    }
+    .hero-composition {
+        grid-template-columns: 1fr;
+        gap: 35px;
+    }
+    .presence-hero h1 span {
+        font-size: clamp(34px,8vw,56px);
+    }
+    .presence-hero h1 strong {
+        font-size: clamp(62px,14vw,98px);
+    }
+    .hero-aside {
+        max-width: none;
+    }
+    .hero-deck br {
+        display: none;
+    }
+    .hero-aside>p:not(.hero-deck) {
+        max-width: 440px;
+    }
+    .presence-button {
+        max-width: 360px;
+    }
+    .hero-rule {
+        margin-top: 35px;
+    }
+    .hero-caption {
+        font-size: 8px;
+        flex-wrap: wrap;
+    }
+    .first-look,.sizing-section {
+        grid-template-columns: 1fr;
+        padding: 48px 0;
+        gap: 24px;
+    }
+    .section-intro h2 {
+        font-size: 32px;
+    }
+    .example-panel,.sizing-panel {
+        padding: 18px;
+        min-width: 0;
+    }
+    .example-panel .content pre {
+        font-size: 11px;
+    }
+    .notes-heading {
+        display: block;
+    }
+    .notes-heading h2 {
+        font-size: 32px;
+    }
+    .notes-heading p {
+        margin-top: 20px;
+    }
+    .notes-grid {
+        grid-template-columns: 1fr;
+    }
+    .notes-grid>a+a {
+        border-left: 0;
+        padding-left: 0;
+    }
+    .notes-grid h3 {
+        margin-top: 20px;
+    }
+    .brand-company {
+        font-size: 18px;
+    }
+    .presence-brand {
+        gap: 9px;
+    }
+    .presence-brand .site-logo-text {
+        font-size: 12px;
+    }
+    .field-notes {
+        padding: 45px 0;
+    }
+    .sizing-result output {
+        font-size: 38px;
+    }
+}
+
+@media(prefers-reduced-motion:reduce) {
+    *,*::before,*::after {
+        scroll-behavior: auto!important;
+        transition: none!important;
+    }
+}

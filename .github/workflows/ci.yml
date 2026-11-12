@@ -21,3 +21,5 @@ jobs:
           version: 2026.11.6
       - name: Build and test
         run: mise run ci
+      - name: Build and verify documentation website
+        run: mise run site:check

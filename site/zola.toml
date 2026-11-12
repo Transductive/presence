@@ -1,0 +1,60 @@
+base_url = "https://transductive.github.io/presence/"
+title = "Presence"
+description = "Membership checks, in plain Java. A library by Transductive."
+author = "Transductive"
+theme = "devlab-theme"
+default_language = "en"
+compile_sass = true
+build_search_index = true
+generate_feeds = false
+
+[search]
+index_format = "elasticlunr_javascript"
+include_title = true
+include_description = true
+include_content = true
+
+[markdown]
+insert_anchor_links = "right"
+
+[markdown.highlighting]
+light_theme = "github-light"
+dark_theme = "github-light"
+
+[extra.devlab.brand]
+logo_text = "Presence"
+show_logo_mark = false
+footer_text = "Transductive"
+
+[extra.devlab.navigation]
+links = [
+    { name = "Guides", collection = "manual" },
+    { name = "Performance", path = "/docs/performance/" },
+    { name = "API", path = "/api/index.html" },
+    { name = "GitHub", path = "https://github.com/Transductive/presence" },
+]
+
+[extra.devlab.collections.manual]
+section = "docs/_index.md"
+title = "Presence / field guide"
+show_breadcrumbs = true
+show_toc = true
+show_pagination = true
+
+[extra.devlab.docs.page_actions]
+show_copy_link = true
+edit_url = "https://github.com/Transductive/presence/edit/main/site/content/"
+report_url = "https://github.com/Transductive/presence/issues/new"
+
+[extra.devlab.appearance]
+default_mode = "light"
+show_toggle = false
+
+[extra.devlab.footer]
+show = true
+note = "Theory meets the machine."
+show_link_names = true
+links = [
+    { name = "Source", path = "https://github.com/Transductive/presence" },
+    { name = "Colophon", path = "/docs/colophon/" },
+]

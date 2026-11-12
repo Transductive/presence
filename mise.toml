@@ -1,7 +1,8 @@
 # Developer commands live here; build behavior lives in build.gradle.kts.
-# The Gradle wrapper pins Gradle, and mise provisions Java on all platforms.
+# The Gradle wrapper pins Gradle; mise provisions Java and Zola on all platforms.
 [tools]
 java = "temurin-21.0.13+9.0.LTS"
+zola = "0.23.6"
 
 # Extra arguments to `mise run <task> -- ...` are forwarded to Gradle.
 [tasks.default]
@@ -118,3 +119,18 @@ run_windows = "cmd /d /c gradlew.bat benchmarkLargeHeap"
 description = "Rebuild namespace-focused flamegraphs from saved JFR: -- -PprofileRun=path/to/run"
 run = "sh ./gradlew benchmarkRenderProfiles"
 run_windows = "cmd /d /c gradlew.bat benchmarkRenderProfiles"
+
+[tasks."site:build"]
+description = "Build the DevLab website and generated Java API reference in build/site"
+run = "sh ./gradlew siteBuild"
+run_windows = "cmd /d /c gradlew.bat siteBuild"
+
+[tasks."site:check"]
+description = "Build the website and verify local links, anchors, and assets"
+run = "sh ./gradlew siteCheck"
+run_windows = "cmd /d /c gradlew.bat siteCheck"
+
+[tasks."site:serve"]
+description = "Build and preview the full website at http://127.0.0.1:8787"
+run = "sh ./gradlew siteServe"
+run_windows = "cmd /d /c gradlew.bat siteServe"

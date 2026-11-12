@@ -261,3 +261,89 @@ publishing {
         }
     }
 }
+
+// Website tools stay outside the library and benchmark dependency graphs.
+val sitePreview = gradle.startParameter.taskNames.any { it.substringAfterLast(':') == "siteServe" }
+val sitePort = providers.gradleProperty("sitePort").getOrElse("8787")
+val siteBaseUrl = providers.gradleProperty("siteBaseUrl").getOrElse(
+    if (sitePreview) "http://127.0.0.1:$sitePort/" else "https://transductive.github.io/presence/"
+)
+val sitePages = layout.buildDirectory.dir("site-pages")
+val siteOutput = layout.buildDirectory.dir("site")
+
+val siteGenerate = tasks.register<Exec>("siteGenerate") {
+    group = "documentation"
+    description = "Compile Markdown and DevLab templates with the mise-provisioned Zola."
+    inputs.dir("site")
+    inputs.property("baseUrl", siteBaseUrl)
+    outputs.dir(sitePages)
+    workingDir(projectDir)
+    commandLine("zola", "--root", file("site").absolutePath, "build",
+        "--base-url", siteBaseUrl, "--output-dir", sitePages.get().asFile.absolutePath, "--force")
+    doFirst {
+        // Zola replaces its output directory. Only allow this generated build path.
+        check(sitePages.get().asFile.canonicalFile.toPath().startsWith(
+            layout.buildDirectory.get().asFile.canonicalFile.toPath()))
+    }
+}
+
+val siteJavadoc = tasks.register<Javadoc>("siteJavadoc") {
+    group = "documentation"
+    description = "Generate the website API reference from production Java sources."
+    source = sourceSets.main.get().allJava
+    classpath = sourceSets.main.get().compileClasspath
+    destinationDir = layout.buildDirectory.dir("docs/site-javadoc").get().asFile
+    inputs.file("site/javadoc/api-theme.css")
+    (options as StandardJavadocDocletOptions).apply {
+        windowTitle = "Presence API"
+        docTitle = "Presence $version API"
+        header = "<a href=\"{@docRoot}/../\">Presence / Field guide</a>"
+        addBooleanOption("notimestamp", true)
+        addStringOption("-add-stylesheet", file("site/javadoc/api-theme.css").absolutePath)
+    }
+}
+
+val siteBuild = tasks.register<Sync>("siteBuild") {
+    group = "documentation"
+    description = "Assemble the static website, Javadoc, licenses, and reference paper."
+    dependsOn(siteGenerate, siteJavadoc)
+    from(sitePages)
+    from(siteJavadoc.map { it.destinationDir }) {
+        into("api")
+        // Some JDK 21 distributions reference DejaVu CSS without shipping it.
+        // The website supplies its own local fonts through api-theme.css.
+        filesMatching("stylesheet.css") {
+            filter { line: String ->
+                if (line.trim() == "@import url('resources/fonts/dejavu.css');")
+                    "/* Font styling is supplied by Presence's api-theme.css. */" else line
+            }
+        }
+    }
+    from("resources/bloomfilters.pdf") { into("resources") }
+    from("LICENSE") { into("licenses"); rename { "presence-LICENSE.txt" } }
+    from("site/themes/devlab-theme/LICENSE") { into("licenses"); rename { "devlab-LICENSE.txt" } }
+    from("site/themes/devlab-theme/THIRD_PARTY_NOTICES.md") {
+        into("licenses"); rename { "devlab-THIRD_PARTY_NOTICES.md" }
+    }
+    from("site/themes/devlab-theme/third_party") { into("licenses/third_party") }
+    into(siteOutput)
+    doLast { println("Website: ${siteOutput.get().asFile.toURI()}\nPreview: mise run site:serve") }
+}
+
+tasks.register<Exec>("siteCheck") {
+    group = "verification"
+    description = "Build and check local HTML links, fragments, and CSS assets."
+    dependsOn(siteBuild)
+    executable = benchmarkLauncher.get().executablePath.asFile.absolutePath
+    args(file("tools/SiteCheck.java").absolutePath, siteOutput.get().asFile.absolutePath, siteBaseUrl)
+}
+
+tasks.register<Exec>("siteServe") {
+    group = "documentation"
+    description = "Build and serve the complete site locally; restart after edits."
+    dependsOn(siteBuild)
+    val suffix = if (System.getProperty("os.name").startsWith("Windows")) ".exe" else ""
+    executable = benchmarkLauncher.get().metadata.installationPath.file("bin/jwebserver$suffix").asFile.absolutePath
+    args("--bind-address", "127.0.0.1", "--port", sitePort, "--directory", siteOutput.get().asFile.absolutePath)
+    doFirst { println("Presence: http://127.0.0.1:$sitePort/ (Ctrl+C to stop; restart after edits)") }
+}
