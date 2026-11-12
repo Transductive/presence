@@ -18,7 +18,8 @@ assets under the deployment prefix. `mise run site:build` assembles `build/site/
 The default deployment base is `https://transductive.github.io/presence/`;
 override it with `-- "-PsiteBaseUrl=https://example.com/docs/"`. Building does not
 publish. The artifact can be served by any static host; no Node or application
-server is needed. CI builds and verifies it on Windows, macOS, and Linux.
+server is needed. The Pages workflow builds and verifies it before deployment;
+the separate library CI builds and runs unit tests on Windows, macOS, and Linux.
 
 ## Publish with GitHub Pages
 
