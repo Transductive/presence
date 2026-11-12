@@ -1,6 +1,8 @@
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import java.security.MessageDigest
+import java.net.URI
 
 plugins {
     `java-library`
@@ -271,6 +273,54 @@ val siteBaseUrl = providers.gradleProperty("siteBaseUrl").getOrElse(
 val sitePages = layout.buildDirectory.dir("site-pages")
 val siteOutput = layout.buildDirectory.dir("site")
 
+val sitePlayground = sourceSets.create("sitePlayground") {
+    java.setSrcDirs(listOf("site/playground/java"))
+}
+val siteTools = sourceSets.create("siteTools") {
+    java.setSrcDirs(listOf("tools"))
+    java.include("SiteServer.java")
+}
+val sitePlaygroundJar = tasks.register<Jar>("sitePlaygroundJar") {
+    description = "Build the browser-only Java compiler bridge, outside the library artifact."
+    archiveBaseName.set("presence-playground")
+    from(sitePlayground.output)
+}
+fun fingerprint(file: File): String = MessageDigest.getInstance("SHA-256")
+    .digest(file.readBytes()).joinToString("") { "%02x".format(it) }.take(16)
+val sitePlaygroundAssets = tasks.register<Sync>("sitePlaygroundAssets") {
+    val libraryJar = tasks.jar.flatMap { it.archiveFile }
+    val runnerJar = sitePlaygroundJar.flatMap { it.archiveFile }
+    val libraryVersion = project.version.toString()
+    inputs.property("version", libraryVersion)
+    from(libraryJar) { rename { "presence-${fingerprint(libraryJar.get().asFile)}.jar" } }
+    from(runnerJar) { rename { "playground-${fingerprint(runnerJar.get().asFile)}.jar" } }
+    into(layout.buildDirectory.dir("site-playground"))
+    doLast {
+        destinationDir.resolve("manifest.json").writeText(
+            """{"version":"$libraryVersion","library":"presence-${fingerprint(libraryJar.get().asFile)}.jar","runner":"playground-${fingerprint(runnerJar.get().asFile)}.jar"}"""
+        )
+    }
+}
+
+val sitePlaygroundTest = sourceSets.create("sitePlaygroundTest") {
+    java.setSrcDirs(listOf("site/playground/test"))
+    compileClasspath += sitePlayground.output + siteTools.output
+    runtimeClasspath += sitePlayground.output + siteTools.output + sourceSets.main.get().output
+}
+configurations[sitePlaygroundTest.implementationConfigurationName].extendsFrom(configurations.testImplementation.get())
+configurations[sitePlaygroundTest.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
+val verifySitePlayground = tasks.register<Test>("sitePlaygroundTest") {
+    description = "Verify the website's compiler bridge and output limits."
+    group = "verification"
+    dependsOn(tasks.jar)
+    testClassesDirs = sitePlaygroundTest.output.classesDirs
+    classpath = sitePlaygroundTest.runtimeClasspath
+    systemProperty("presence.playground.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
+    inputs.file("site/static/playground/Playground.java")
+    systemProperty("presence.playground.example", file("site/static/playground/Playground.java").absolutePath)
+    useJUnitPlatform()
+}
+
 val siteGenerate = tasks.register<Exec>("siteGenerate") {
     group = "documentation"
     description = "Compile Markdown and DevLab templates with the mise-provisioned Zola."
@@ -305,9 +355,10 @@ val siteJavadoc = tasks.register<Javadoc>("siteJavadoc") {
 
 val siteBuild = tasks.register<Sync>("siteBuild") {
     group = "documentation"
-    description = "Assemble the static website, Javadoc, licenses, and reference paper."
+    description = "Assemble the static website, playground JARs, Javadoc, licenses, and reference paper."
     dependsOn(siteGenerate, siteJavadoc)
     from(sitePages)
+    from(sitePlaygroundAssets) { into("playground/lib") }
     from(siteJavadoc.map { it.destinationDir }) {
         into("api")
         // Some JDK 21 distributions reference DejaVu CSS without shipping it.
@@ -333,7 +384,7 @@ val siteBuild = tasks.register<Sync>("siteBuild") {
 tasks.register<Exec>("siteCheck") {
     group = "verification"
     description = "Build and check local HTML links, fragments, and CSS assets."
-    dependsOn(siteBuild)
+    dependsOn(siteBuild, verifySitePlayground)
     executable = benchmarkLauncher.get().executablePath.asFile.absolutePath
     args(file("tools/SiteCheck.java").absolutePath, siteOutput.get().asFile.absolutePath, siteBaseUrl)
 }
@@ -342,8 +393,7 @@ tasks.register<Exec>("siteServe") {
     group = "documentation"
     description = "Build and serve the complete site locally; restart after edits."
     dependsOn(siteBuild)
-    val suffix = if (System.getProperty("os.name").startsWith("Windows")) ".exe" else ""
-    executable = benchmarkLauncher.get().metadata.installationPath.file("bin/jwebserver$suffix").asFile.absolutePath
-    args("--bind-address", "127.0.0.1", "--port", sitePort, "--directory", siteOutput.get().asFile.absolutePath)
-    doFirst { println("Presence: http://127.0.0.1:$sitePort/ (Ctrl+C to stop; restart after edits)") }
+    executable = benchmarkLauncher.get().executablePath.asFile.absolutePath
+    args(file("tools/SiteServer.java").absolutePath, siteOutput.get().asFile.absolutePath,
+        sitePort, URI.create(siteBaseUrl).path)
 }

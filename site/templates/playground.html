@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block main_class %} presence-playground{% endblock main_class %}
+{% block extra_styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ get_url(path='playground/playground.css') }}">
+{% endblock extra_styles %}
+{% block content %}
+<header class="playground-heading">
+    <a class="text-link" href="{{ get_url(path='/') }}">← Presence</a>
+    <p class="eyebrow">PLAYGROUND / JAVA 21</p>
+    <h1>Make your first lookup.</h1>
+    <p>Edit the example. Run the library. See the answer.</p>
+</header>
+<div class="playground-toolbar" aria-label="Playground controls">
+    <div class="playground-actions">
+        <button type="button" id="playground-run" disabled>Run <span aria-hidden="true">↗</span></button>
+        <button type="button" id="playground-stop" disabled>Stop</button>
+        <button type="button" id="playground-reset" disabled>Reset example</button>
+    </div>
+    <p id="playground-status" role="status" aria-live="polite">Preparing editor…</p>
+</div>
+<div class="playground-workspace">
+    <section class="playground-pane" aria-labelledby="source-label">
+        <div class="playground-pane-heading"><label for="playground-source" id="source-label">Playground.java</label><span>EDIT / RUN</span></div>
+        <textarea id="playground-source" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" maxlength="32768" aria-describedby="playground-help">{{ load_data(path="static/playground/Playground.java", format="plain") }}</textarea>
+    </section>
+    <section class="playground-pane" aria-labelledby="output-label">
+        <div class="playground-pane-heading"><h2 id="output-label">Output</h2><span>YOUR BROWSER</span></div>
+        <pre id="playground-output" tabindex="0" aria-label="Program output">Your output will appear here.</pre>
+    </section>
+</div>
+<div class="playground-details">
+    <p id="playground-help">Use <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to run. Print results with <code>System.out.println</code>. Each run starts fresh.</p>
+    <p>Runs locally in your browser. The first run downloads Java from CheerpJ; your code is not sent to a compiler server. Small examples work best. Execution stops after 10 seconds; output is limited to 32 KiB.</p>
+    <p>A Bloom filter’s <code>false</code> means definitely absent. <code>true</code> means possibly present—verify against your source of truth.</p>
+    <p><a href="{{ get_url(path='api/index.html') }}">API reference ↗</a> <span aria-hidden="true">/</span> <a href="https://cheerpj.com/">Built with CheerpJ</a> <span aria-hidden="true">/</span> <span id="playground-version">Presence · Java 21</span></p>
+</div>
+<noscript><p>This playground needs JavaScript. You can still <a href="{{ get_url(path='@/docs/getting-started.md') }}">run Presence locally</a>.</p></noscript>
+{% endblock content %}
+{% block extra_scripts %}<script type="module" src="{{ get_url(path='playground/playground.js') }}"></script>{% endblock extra_scripts %}

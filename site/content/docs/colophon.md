@@ -23,3 +23,14 @@ The fonts are served locally under the SIL Open Font License. DevLab and its inc
 - [IBM Plex Mono license]({{ get_url(path="fonts/ibmplexmono-OFL.txt") }})
 
 The site has no analytics, external font requests, or hosted search service. Documentation search runs in your browser. API search is provided by Javadoc.
+
+## Java in the browser
+
+The [playground](@/playground.md) is built with [CheerpJ 5.0](https://cheerpj.com/).
+Selecting **Run** loads its Java 21 runtime from CheerpJ's CDN, then compiles and
+executes your example against the same Presence JAR built with the site. Your
+source is not sent to a compiler server. Each run uses a disposable Web Worker.
+
+CheerpJ is separately licensed commercial software with a free Community
+offering for eligible projects. Its runtime is loaded from the vendor rather
+than redistributed with Presence. See [CheerpJ licensing](https://cheerpj.com/licensing/).

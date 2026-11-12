@@ -21,17 +21,21 @@
 </section>
 
 <section class="first-look" aria-labelledby="first-look-title">
-    <div class="section-intro">
-        <p class="eyebrow">01 / THE FIRST LOOKUP</p>
-        <h2 id="first-look-title">A small API.<br>A useful distinction.</h2>
-        <p>A negative result lets you skip the expensive lookup. A positive result tells you to check.</p>
-        <dl class="answer-key">
-            <div><dt>false</dt><dd>Definitely absent.</dd></div>
-            <div><dt>true</dt><dd>Possibly present.</dd></div>
-        </dl>
+    <div class="section-intro first-look-intro">
+        <div>
+            <p class="eyebrow">01 / THE FIRST LOOKUP</p>
+            <h2 id="first-look-title">A small API.<br>A useful distinction.</h2>
+        </div>
+        <div class="first-look-summary">
+            <p>A negative result lets you skip the expensive lookup. A positive result tells you to check.</p>
+            <dl class="answer-key">
+                <div><dt>false</dt><dd>Definitely absent.</dd></div>
+                <div><dt>true</dt><dd>Possibly present.</dd></div>
+            </dl>
+        </div>
     </div>
     <div class="example-panel">
-        <div class="panel-label"><span>JAVA / QUICK START</span><span>01</span></div>
+        <div class="panel-label"><span>JAVA / QUICK START</span><a class="quickstart-playground" href="{{ get_url(path='@/playground.md') }}">Open playground <span aria-hidden="true">↗</span></a></div>
         <div class="content">{{ section.content | safe }}</div>
         <p class="code-note">No retained keys. Zero runtime dependencies.</p>
     </div>
