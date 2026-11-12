@@ -19,6 +19,12 @@ commands. Developer commands live in `mise.toml`, separate from the build
 definition in `build.gradle.kts`. Gradle owns compilation, test execution, and
 incremental builds; mise provides the shared command interface.
 
+When changing GitHub Actions workflows, run `mise run ci:lint`. If you have
+Docker running Linux containers, `mise run ci:local` also runs the Ubuntu CI job
+against your working tree. Mise installs the pinned tooling on demand; Docker
+is optional for other development. See the
+[local CI guide](README.md#test-workflow-changes-locally) for setup and limitations.
+
 To run one test method or pass another Gradle option:
 
 ```sh

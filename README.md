@@ -194,6 +194,8 @@ Start with `mise tasks ls` (or `mise run`) to list the available commands:
 | `mise run docs` | Generate API documentation. |
 | `mise run publish:local` | Build, test, and publish to local Maven. |
 | `mise run ci` | Run a clean build, matching CI. |
+| `mise run ci:lint` | Validate GitHub Actions workflows with actionlint. |
+| `mise run ci:local` | Run the Ubuntu CI job locally with act and Docker. |
 | `mise run benchmark` | Compare Bloom, HashSet, and HashMap with JMH. |
 | `mise run benchmark:smoke` | Quickly verify the benchmark harness at N=1,000. |
 | `mise run benchmark:flamegraph` | Record JFR profiles and generate HTML flamegraphs. |
@@ -206,7 +208,8 @@ Start with `mise tasks ls` (or `mise run`) to list the available commands:
 | `mise run benchmark:large:heap` | Measure the large benchmark's retained query-pool memory. |
 | `mise run benchmark:review` | Turn your saved large runs into a combined browser review. |
 
-These commands work without shell activation. Arguments after `--` go to Gradle:
+These commands work without shell activation. Arguments after `--` go to the
+task's underlying command (Gradle for build and test tasks):
 
 ```sh
 mise run test -- --tests 'io.transductive.presence.bloom.BloomFilterTest'
@@ -223,6 +226,39 @@ so Gradle controls build and test behavior in both the terminal and IntelliJ.
 `mise where java`, and select that JDK as both the project SDK and Gradle JVM.
 Use the Gradle wrapper and run or debug `BloomFilterTest` from the editor.
 [Full IDE setup and contribution guide →](CONTRIBUTING.md)
+
+### Test workflow changes locally
+
+Mise installs pinned [actionlint](https://github.com/rhysd/actionlint) and
+[act](https://nektosact.com/) versions when their tasks run. They are optional;
+the usual Java build does not require Docker.
+
+```sh
+mise run ci:lint
+mise run ci:local -- --list
+mise run ci:local
+```
+
+`ci:lint` checks workflow syntax and expressions without Docker. `--list`
+lists the selected workflow job without running it. For execution (including
+act's `--dryrun`, which still connects to Docker),
+install and start [Docker](https://nektosact.com/installation/index.html#docker),
+using Linux containers on Windows, and confirm `docker info` succeeds.
+The first run downloads the Ubuntu runner image, actions, and build tools.
+
+`ci:local` lints first, then runs the **Ubuntu build job** from
+`.github/workflows/ci.yml`, including tests and website verification, against
+your local working tree. It uses an Ubuntu 26.04 amd64 container; Apple Silicon
+runs it through emulation. Windows and macOS jobs still run on GitHub. The
+container approximates the hosted runner, so hosted CI remains the final check.
+Pages deployment stays on GitHub because act does not reproduce its permissions,
+OIDC, or deployment environments. See act's
+[runner guide](https://nektosact.com/usage/runners.html) and
+[unsupported features](https://nektosact.com/not_supported.html).
+
+No repository secrets are required for this build. If you need a GitHub token
+for API rate limits, use `mise run ci:local -- --secret GITHUB_TOKEN` to enter it
+interactively. Optional root `.secrets`, `.env`, and `.vars` files are ignored by Git.
 
 ## Benchmark and profile
 

@@ -19,6 +19,9 @@ jobs:
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
         with:
           version: 2026.11.6
+      - name: Lint GitHub Actions workflows
+        if: matrix.os == 'ubuntu-latest'
+        run: mise run ci:lint
       - name: Build and test
         run: mise run ci
       - name: Build and verify documentation website

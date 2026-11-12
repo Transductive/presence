@@ -10,6 +10,11 @@ out/
 Thumbs.db
 mise.local.toml
 
+# Optional local act inputs; credentials and machine-specific settings stay local.
+/.secrets
+/.env
+/.vars
+
 # Reports are generated locally; editable templates use the .peb extension.
 *.html
 *.htm
