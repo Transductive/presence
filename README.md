@@ -176,6 +176,11 @@ Use `mise run site:build` for the static artifact in `build/site/` and
 [website authoring guide](site/README.md) for content and hosting configuration.
 Generated pages remain ignored; editable site and theme templates are tracked.
 
+The homepage's **Open playground** link lets you edit and run Java 21 examples
+against the actual Presence JAR in your browser. CheerpJ loads on the first Run;
+there is no compiler server or account. Stop and Reset keep experimentation
+small and disposable. The website guide covers runtime licensing and limits.
+
 The `Deploy documentation` workflow publishes validated site builds from `main`
 to GitHub Pages after the repository's Pages source is set to **GitHub Actions**.
 See the [publishing setup](site/README.md#publish-with-github-pages) for the

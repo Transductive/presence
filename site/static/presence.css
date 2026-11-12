@@ -330,17 +330,26 @@ a:focus-visible,button:focus-visible,select:focus-visible {
 .example-panel {
     width: max-content;
     max-width: 100%;
-    justify-self: center;
+    justify-self: start;
 }
 
 .panel-label {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 16px;
     font-size: 10px;
     color: var(--signal);
     font-weight: 700;
     letter-spacing: .03em;
     margin-bottom: 24px;
+}
+
+.quickstart-playground {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    white-space: nowrap;
 }
 
 .example-panel .content {
