@@ -42,6 +42,7 @@ public final class BenchmarkRunner {
         if (settings.smoke()) {
             System.out.println("SMOKE RUN: checks the harness; do not use these scores for performance conclusions.");
         }
+        boolean focused = settings.mode().equals("scalable");
         var options = new OptionsBuilder()
                 .include(settings.include())
                 .param("N", settings.sizes().toArray(String[]::new))
@@ -55,8 +56,10 @@ public final class BenchmarkRunner {
                 .forks(settings.smoke() || settings.profile() ? 1 : 2)
                 .warmupIterations(settings.smoke() ? 1 : 3)
                 .measurementIterations(settings.smoke() ? 1 : 5)
-                .warmupTime(settings.smoke() ? TimeValue.milliseconds(100) : TimeValue.seconds(1))
-                .measurementTime(settings.smoke() ? TimeValue.milliseconds(200) : TimeValue.seconds(1))
+                .warmupTime(settings.smoke() ? TimeValue.milliseconds(100)
+                        : focused ? TimeValue.milliseconds(500) : TimeValue.seconds(1))
+                .measurementTime(settings.smoke() ? TimeValue.milliseconds(200)
+                        : focused ? TimeValue.milliseconds(500) : TimeValue.seconds(1))
                 .jvmArgs("-Xms256m", "-Xmx" + maximumHeap)
                 .shouldFailOnError(true)
                 .resultFormat(ResultFormatType.JSON)

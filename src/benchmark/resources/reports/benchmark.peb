@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Presence · Benchmark review</title>
+  <title>Presence · Benchmark Review</title>
   <style>
     :root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; color: #161616; background: #f5f5f5; }
     body { max-width: 1140px; margin: auto; padding: 40px 24px 72px; }
@@ -31,15 +31,21 @@
 <body>
   <header>
     <div class="brand">Transductive / Presence</div>
-    <h1>Membership, measured.</h1>
-    <p>Presence Bloom hashing strategies vs. JDK HashSet and HashMap</p>
+    <h1>Membership, Measured.</h1>
+    {% if SCALABLE %}<p>Fixed-size vs. Scalable Bloom · known final size vs. growth from 1,000 keys</p>
+    {% else %}<p>Presence Bloom hashing strategies vs. JDK HashSet and HashMap</p>{% endif %}
     <p class="meta">{{ENVIRONMENT}}</p>
     <p class="notice">{{WARNING}}</p>
     {{ALLOCATION_AUDIT | raw}}
     <p><a href="results.json">Raw JMH JSON</a> · <a href="run.txt">Run settings</a> · Mode: {{MODE}}</p>
   </header>
   <section>
-    <h2>Read the comparison</h2>
+    <h2>Read the Comparison</h2>
+    {% if SCALABLE %}
+    <p>One lookup into a prebuilt filter. Fixed Bloom is sized for the final N. Scalable starts at 1,000 and doubles slice sizes as needed, with a 0.9 tightening ratio. Both target 1% for the whole filter. <strong>Measured false-positive rates and memory are not matched:</strong> scalable's spare capacity and tighter layers can make it more selective. Growth and insertion are outside these timings.</p>
+    <p>All contenders use identical deterministic keys and shuffled query pools. Hits are sampled uniformly across the inserted set, not concentrated in the newest layer. BROAD uses the next power of two at least max(65,536, N); HOT uses 4,096. Pools repeat, so BROAD does not imply cold caches. CACHED means existing strings here: neither Bloom filter caches String.hashCode(). FRESH, when selected, includes constructing a new query string in the timed operation.</p>
+    <p>Times include query selection, UTF-8 processing, hashing, and probes. Scalable checks layers newest first; definite misses visit them all. Murmur3 and rapidhash v3 are compared separately. Error is JMH's 99.9% confidence half-width. Allocation is JMH's process-wide GC metric, not retained heap; tiny fractional B/op can include harness activity.</p>
+    {% else %}
     <p>Lookup: one query into a prebuilt structure. Construction: allocate and populate a fresh structure with all N keys.</p>
     <p>Bloom uses a 1% target false-positive rate; HashSet and HashMap answer exactly. Core lookup tables time membership alone. Prefilter tables time the complete exact answer, including downstream verification after every Bloom positive. All structures receive the same deterministic string data.</p>
     <p>N is the number of stored keys. HOT uses 4,096 prebuilt, shuffled queries. BROAD uses the next power of two at least max(65,536, N); each table states the actual pool size. Both repeat their pool and access it sequentially after shuffling: BROAD means a larger working set, not guaranteed cold caches or random DRAM latency. Hits use equal strings with different identity and backing storage.</p>
@@ -48,8 +54,17 @@
     <p>Prefilter downstream work is JMH consumeCPU(tokens), followed by the same exact HashMap lookup. Tokens are synthetic CPU work, not nanoseconds, network, or database latency; zero tokens isolates an in-memory backing map. False positives pay the full verification cost. Downstream-call percentages and observed false positives among absent queries come from JMH event counters; both paths include counter overhead. Compare these timings within the prefilter tables.</p>
     <p>Unmarked lookup tables use ASCII keys. LATIN1 includes accented characters; UNICODE includes CJK and emoji; MALFORMED contains unpaired surrogates; LONG_UNICODE adds a 2,560-byte UTF-8 prefix. Input kinds are shown separately, and all encoding work happens inside the measured lookup.</p>
     <p>Allocation is bytes allocated per operation from JMH's GC profiler, <strong>not retained heap size</strong>. Run benchmark:heap for a separate live object graph comparison. Bars use a separate linear scale for each table. Error is JMH's 99.9% confidence half-width; n/a means insufficient observations. A Bloom filter's space advantage does not imply a lookup-latency crossover against a cached-hash table.</p>
+    {% endif %}
   </section>
   {{SCALING | raw}}
+  {% if SCALABLE %}
+  <section><h2>Growth, Storage, and Accuracy</h2>
+    <p>Separate untimed validation checks every inserted key and 262,144 disjoint absent queries. Payload includes 64-bit storage rounding but excludes object headers, counters, and hashing workspace. Intervals are 95% Wilson intervals for the sampled false-positive rate. <a href="scalable-evidence.csv">Raw evidence CSV</a>.</p>
+    <div class="table-wrap"><table><thead><tr><th>N</th><th>Input</th><th>Implementation</th><th>Layers</th><th>Payload bytes</th><th>Observed FPR</th><th>95% interval</th></tr></thead>
+      <tbody>{% for row in SCALABLE_ROWS %}<tr>{% for cell in row %}<td>{{cell}}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% endif %}
   {{PROFILES | raw}}
   {{RESULTS | raw}}
   <footer>Generated locally with JMH. Offline HTML; no external scripts or services. Keep raw JSON when comparing runs across machines or revisions.</footer>

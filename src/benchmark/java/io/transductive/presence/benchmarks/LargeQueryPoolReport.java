@@ -42,7 +42,7 @@ public final class LargeQueryPoolReport {
                         + "Excludes membership structure, transient String construction, and measurement harness.");
         Path json = output.resolve("query-pool.json");
         ReportJson.write(json, data);
-        ReportTemplate.write(output.resolve("index.html"), "query-pool.peb", Map.of("title", "Query memory, measured.",
+        ReportTemplate.write(output.resolve("index.html"), "query-pool.peb", Map.of("title", "Query Memory, Measured.",
                 "method", sizing, "rows", ReviewEvidence.poolRows(ReportJson.read(json).getAsJsonObject())));
         System.out.println("Presence query-pool review is ready. Open this file in your browser:");
         System.out.println("  " + output.resolve("index.html").toUri().toASCIIString());

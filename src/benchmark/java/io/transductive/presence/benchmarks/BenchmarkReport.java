@@ -20,15 +20,15 @@ final class BenchmarkReport {
         String title() {
             return (prefilter ? "Prefilter" : lookup ? "Lookup" : "Construction") + " · N="
                     + String.format(Locale.ROOT, "%,d", size)
-                    + (lookup ? " · hits=" + hitPercent + "%" : " · all N inserts")
-                    + (lookup && !inputKind.equals("ASCII") ? " · input=" + inputKind : "")
+                    + (lookup ? " · Hits=" + hitPercent + "%" : " · All N Inserts")
+                    + (lookup && !inputKind.equals("ASCII") ? " · Input=" + inputKind : "")
                     + (scenario.isEmpty() ? "" : " · " + scenario)
                     + (lookup ? " · " + String.format(Locale.ROOT, "%,d", BenchmarkData.queryCount(size, workingSet))
-                            + " queries" : "");
+                            + " Queries" : "");
         }
 
         String scalingTitle() {
-            return (prefilter ? "Prefilter scaling" : "Lookup scaling")
+            return (prefilter ? "Prefilter Scaling" : "Lookup Scaling")
                     + (inputKind.equals("ASCII") ? "" : " · " + inputKind)
                     + (scenario.isEmpty() ? "" : " · " + scenario);
         }
@@ -42,6 +42,8 @@ final class BenchmarkReport {
                 ? "Smoke run — harness validation only. These short measurements are not performance evidence."
                 : settings.profile()
                 ? "Profile run — JFR adds overhead. Use an unprofiled benchmark run for timing comparisons."
+                : settings.mode().equals("scalable")
+                ? "Focused run — 2 forks, 3 × 500 ms warmups, 5 × 500 ms measurements. Preliminary local comparison; inspect uncertainty."
                 : "Full run — compare matching workloads and N. Lower time and allocation are better.";
         String environment = "Java " + Runtime.version() + " · " + System.getProperty("os.name")
                 + " / " + System.getProperty("os.arch") + " · "
@@ -63,7 +65,7 @@ final class BenchmarkReport {
                     : workingSet + " · " + queryMode;
             if (prefilter) {
                 scenario += (scenario.isEmpty() ? "" : " · ") + parameter(result, "strategy", "RAPIDHASH_V3")
-                        + " · downstream tokens=" + parameter(result, "downstreamTokens", "0");
+                        + " · Downstream Tokens=" + parameter(result, "downstreamTokens", "0");
             }
             var key = new Workload(lookup, prefilter, Integer.parseInt(params.getParam("N")),
                     lookup ? Integer.parseInt(params.getParam("hitPercent")) : 0,
@@ -121,10 +123,12 @@ final class BenchmarkReport {
             }
             links.append("</ul></section>");
         }
+        var scalableRows = ScalableBenchmarkEvidence.write(directory, results);
         ReportTemplate.write(directory.resolve("index.html"), "benchmark.peb", Map.of(
                 "MODE", settings.mode(), "WARNING", warning, "ENVIRONMENT", environment,
                 "ALLOCATION_AUDIT", allocationAudit(directory), "SCALING", scaling(groups),
-                "PROFILES", links.toString(), "RESULTS", sections.toString()));
+                "PROFILES", links.toString(), "RESULTS", sections.toString(), "SCALABLE_ROWS", scalableRows,
+                "SCALABLE", !scalableRows.isEmpty()));
     }
 
     private static String scaling(Map<Workload, List<RunResult>> groups) {
@@ -171,7 +175,7 @@ final class BenchmarkReport {
                 + "Lower is better. Compare within the same hit ratio; see the detailed tables for uncertainty "
                 + "and allocation. A missing result for an included implementation is shown as n/a.</p>");
         for (int hitPercent : hitRates) {
-            html.append("<h3>").append(hitPercent).append("% hits · ns/lookup</h3>")
+            html.append("<h3>").append(hitPercent).append("% Hits · ns/lookup</h3>")
                     .append("<div class='table-wrap'><table class='scaling-table'><thead><tr><th>N · stored keys</th>");
             for (String method : methods) {
                 html.append("<th>").append(label(method)).append("</th>");
@@ -211,8 +215,12 @@ final class BenchmarkReport {
                 : number(100 * top.getScore() / bottom.getScore()) + "%";
     }
 
-    private static String label(String method) {
+    static String label(String method) {
         return switch (method) {
+            case "fixedMurmur" -> "Fixed Bloom · Murmur3";
+            case "fixedRapidhash" -> "Fixed Bloom · rapidhash v3";
+            case "scalableMurmur" -> "Scalable Bloom · Murmur3";
+            case "scalableRapidhash" -> "Scalable Bloom · rapidhash v3";
             case "bloom" -> "Presence Bloom · Murmur3";
             case "bloomRapidhash" -> "Presence Bloom · rapidhash v3";
             case "bloomRapidhashNano" -> "Presence Bloom · rapidhash Nano v3";

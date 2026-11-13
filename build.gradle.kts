@@ -73,13 +73,15 @@ fun registerBenchmarkTask(name: String, mode: String, taskDescription: String) =
         systemProperty("presence.benchmark.maxHeap", providers.gradleProperty("benchmarkMaxHeap").getOrElse("512m"))
         args(mode, layout.buildDirectory.dir("reports/benchmarks").get().asFile.absolutePath)
         args(providers.gradleProperty("benchmarkSizes").getOrElse(
-            if (mode == "smoke" || mode == "allocation") "1000" else "1000,10000,100000,500000,1000000"
+            if (mode == "smoke" || mode == "allocation") "1000"
+            else if (mode == "scalable") "1000,10000,100000" else "1000,10000,100000,500000,1000000"
         ))
         args(providers.gradleProperty("benchmarkHits").getOrElse(
             when (mode) {
                 "profile", "allocation" -> "50"
                 "misses" -> "0"
                 "prefilter" -> "0,50"
+                "scalable" -> "0,100"
                 else -> "0,50,100"
             }
         ))
@@ -88,13 +90,15 @@ fun registerBenchmarkTask(name: String, mode: String, taskDescription: String) =
                 "profile", "allocation" -> ".*\\.MembershipBenchmark\\..*"
                 "misses" -> ".*\\.MembershipBenchmark\\.(bloomRapidhash|hashSet|hashMap)$"
                 "prefilter" -> ".*PrefilterBenchmark.*"
+                "scalable" -> ".*ScalableMembershipBenchmark.*"
                 else -> ".*\\.(Membership|Construction)Benchmark\\..*"
             }
         ))
         args(providers.gradleProperty("benchmarkInputs").getOrElse(
             if (mode == "allocation") "ASCII,LATIN1,UNICODE,MALFORMED,LONG_UNICODE" else "ASCII"
         ))
-        args(providers.gradleProperty("benchmarkWorkingSets").getOrElse(if (mode == "misses") "HOT,BROAD" else "HOT"))
+        args(providers.gradleProperty("benchmarkWorkingSets").getOrElse(
+            if (mode == "misses") "HOT,BROAD" else if (mode == "scalable") "BROAD" else "HOT"))
         args(providers.gradleProperty("benchmarkQueryModes").getOrElse("CACHED"))
         args(providers.gradleProperty("benchmarkDownstreamTokens").getOrElse("0,256"))
         args(providers.gradleProperty("benchmarkStrategies").getOrElse("RAPIDHASH_V3"))
@@ -106,6 +110,7 @@ registerBenchmarkTask("benchmarkFlamegraph", "profile", "Record JFR profiles and
 registerBenchmarkTask("benchmarkAllocation", "allocation", "Measure lookup allocation across ASCII and Unicode inputs.")
 registerBenchmarkTask("benchmarkMisses", "misses", "Compare absent lookups with hot and broad query working sets.")
 registerBenchmarkTask("benchmarkPrefilter", "prefilter", "Compare exact downstream lookups with and without a Bloom guard.")
+registerBenchmarkTask("benchmarkScalable", "scalable", "Compare fixed-size Bloom with growth from N=1000, including accuracy and payload size.")
 
 // The large experiment deliberately owns a separate bounded fixture. Existing
 // small/medium benchmarks retain their original datasets and defaults.
@@ -318,6 +323,8 @@ val verifySitePlayground = tasks.register<Test>("sitePlaygroundTest") {
     systemProperty("presence.playground.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
     inputs.file("site/static/playground/Playground.java")
     systemProperty("presence.playground.example", file("site/static/playground/Playground.java").absolutePath)
+    inputs.file("site/static/playground/ScalablePlayground.java")
+    systemProperty("presence.playground.scalableExample", file("site/static/playground/ScalablePlayground.java").absolutePath)
     useJUnitPlatform()
 }
 
@@ -347,7 +354,7 @@ val siteJavadoc = tasks.register<Javadoc>("siteJavadoc") {
     (options as StandardJavadocDocletOptions).apply {
         windowTitle = "Presence API"
         docTitle = "Presence $version API"
-        header = "<a href=\"{@docRoot}/../\">Presence / Field guide</a>"
+        header = "<a href=\"{@docRoot}/../\">Presence / Field Guide</a>"
         addBooleanOption("notimestamp", true)
         addStringOption("-add-stylesheet", file("site/javadoc/api-theme.css").absolutePath)
     }
@@ -355,7 +362,7 @@ val siteJavadoc = tasks.register<Javadoc>("siteJavadoc") {
 
 val siteBuild = tasks.register<Sync>("siteBuild") {
     group = "documentation"
-    description = "Assemble the static website, playground JARs, Javadoc, licenses, and reference paper."
+    description = "Assemble the static website, playground JARs, Javadoc, licenses, and reference papers."
     dependsOn(siteGenerate, siteJavadoc)
     from(sitePages)
     from(sitePlaygroundAssets) { into("playground/lib") }
@@ -371,6 +378,7 @@ val siteBuild = tasks.register<Sync>("siteBuild") {
         }
     }
     from("resources/bloomfilters.pdf") { into("resources") }
+    from("resources/scalable-bloom-filters.pdf") { into("resources") }
     from("LICENSE") { into("licenses"); rename { "presence-LICENSE.txt" } }
     from("site/themes/devlab-theme/LICENSE") { into("licenses"); rename { "devlab-LICENSE.txt" } }
     from("site/themes/devlab-theme/THIRD_PARTY_NOTICES.md") {

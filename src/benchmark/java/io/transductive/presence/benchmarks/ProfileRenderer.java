@@ -48,7 +48,7 @@ public final class ProfileRenderer {
         }
         long focusedSamples = ProfileFrames.transductiveOnly(full, collapsed);
         converter = new ProcessBuilder(java, "-cp", System.getProperty("java.class.path"),
-                "one.convert.Main", "--title", BenchmarkReport.escape(label + " · io.transductive frames only"),
+                "one.convert.Main", "--title", BenchmarkReport.escape(label + " · io.transductive Frames Only"),
                 collapsed.toString(), flame.toString()).inheritIO().start();
         if (converter.waitFor() != 0 || !Files.isRegularFile(flame)) {
             throw new IllegalStateException("Flamegraph conversion failed for " + recording);

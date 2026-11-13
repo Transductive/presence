@@ -1,12 +1,12 @@
 +++
-title = "Develop & contribute"
+title = "Develop & Contribute"
 description = "One tool setup across Windows, macOS, and Linux."
-weight = 5
+weight = 6
 +++
 
 Mise owns the developer commands and tool versions. Gradle owns compilation, tests, packaging, and reproducible build outputs.
 
-## Everyday commands
+## Everyday Commands
 
 ```sh
 mise tasks ls
@@ -21,7 +21,7 @@ Use `mise where java` for the JDK installation directory. `mise exec -- java -ve
 mise run test -- --tests '*BloomFilterTest'
 ```
 
-## Check CI locally
+## Check CI Locally
 
 ```sh
 mise run ci                # Clean Gradle build on your host
@@ -51,13 +51,13 @@ The build does not need repository secrets. For GitHub API rate limits, use
 `mise run ci:local -- --secret GITHUB_TOKEN` and enter a token at the prompt.
 Optional root `.secrets`, `.env`, and `.vars` files stay out of Git.
 
-## Work on the website
+## Work on the Website
 
 ```sh
 mise run site:serve
 ```
 
-Open **http://127.0.0.1:8787/**. This builds the guides, API reference, and bundled paper, then serves the assembled site. Stop with Ctrl+C. After editing, restart the command to rebuild; this preview does not live-reload.
+Open **http://127.0.0.1:8787/**. This builds the guides, API reference, playground, and bundled papers, then serves the assembled site. Stop with Ctrl+C. After editing, restart the command to rebuild; this preview does not live-reload.
 
 ```sh
 mise run site:build
@@ -68,7 +68,7 @@ The complete static artifact is `build/site/`. Content lives in `site/content/`,
 
 For another deployment address, pass `-PsiteBaseUrl=https://example.com/presence/` after `--`. The build preserves the path prefix in navigation and asset URLs.
 
-## What belongs in core
+## What Belongs in Core
 
 Production code stays in `src/main/java` and uses the Java core library. Benchmarks have their own source set and dependencies. Website tools do not affect the library dependency graph.
 
@@ -76,6 +76,6 @@ Start a contribution with a concrete use case and a reproducible test. Changes t
 
 ## Roadmap
 
-The fixed-capacity Bloom filter is available today. Counting filters, scalable filters, and serialization are proposed directions. The blocked layout is an experiment. These are not promises of released functionality.
+Fixed-size and scalable Bloom filters are available in the source snapshot. Counting filters and serialization are proposed directions. The blocked layout remains a benchmark-only experiment. Proposed features are not promises of released functionality.
 
 [Explore the repository](https://github.com/Transductive/presence) or [open an issue](https://github.com/Transductive/presence/issues).

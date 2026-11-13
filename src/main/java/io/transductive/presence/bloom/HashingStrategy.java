@@ -1,6 +1,10 @@
 package io.transductive.presence.bloom;
 
-/** Built-in Bloom filter hashing strategies, fixed for the lifetime of a filter. */
+/**
+ * Built-in Bloom filter hashing strategies, fixed for the lifetime of a filter.
+ * Probe details below describe {@link BloomFilter}; {@link ScalableBloomFilter}
+ * uses the same algorithms with layer-specific, partitioned probes.
+ */
 public enum HashingStrategy {
     /**
      * Default: MurmurHash3 x64 128-bit, seed zero, with double hashing for bit positions.

@@ -1,4 +1,4 @@
-# Native hash reference vectors
+# Native Hash Reference Vectors
 
 `hash-vectors.c` generates `src/test/resources/seeded-hash-vectors.csv` using the
 upstream implementations, independently of the Java ports. Normal Gradle tests

@@ -30,7 +30,7 @@ class ReviewEvidenceTest {
         ReportJson.write(manifest, Map.of("runs", List.of("run"), "accuracy", List.of("accuracy.json")));
         Path output = BenchmarkReview.generate(manifest, directory.resolve("reviews"));
         String html = Files.readString(output.resolve("index.html"));
-        assertTrue(html.contains("Independent false-positive validation · N = 1,000"));
+        assertTrue(html.contains("Independent False-Positive Validation · N = 1,000"));
         assertTrue(html.contains("<td>Matched</td>"));
         assertTrue(html.contains("Reference only:"));
         assertTrue(Files.isRegularFile(output.resolve("evidence/1.json")));

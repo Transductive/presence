@@ -1,12 +1,12 @@
 +++
-title = "Meet the machine"
+title = "Meet the Machine"
 description = "Measure lookup cost, allocation, retained memory, and false positives together."
-weight = 4
+weight = 5
 +++
 
 A Bloom filter trades exact answers for compact membership storage. Whether it saves time depends on the work it can avoid. Compare complete workloads, including verification of possible positives.
 
-## Start with your own evidence
+## Start with Your Own Evidence
 
 ```sh
 mise run benchmark:smoke
@@ -17,7 +17,7 @@ The smoke task checks wiring at **N = 1,000**. It is not performance evidence. T
 
 Generated reports belong to the person running the experiment. They are ignored by Git and are not automatically included in this website.
 
-## Separate the dimensions
+## Separate the Dimensions
 
 | Question | Command |
 | --- | --- |
@@ -26,16 +26,33 @@ Generated reports belong to the person running the experiment. They are ignored 
 | How much is allocated per lookup? | `mise run benchmark:allocation` |
 | How much memory stays reachable? | `mise run benchmark:heap` |
 | Where does execution time go? | `mise run benchmark:flamegraph` |
+| What does automatic growth cost? | `mise run benchmark:scalable` |
 
 **Allocated bytes per operation and retained heap are different measurements.** A prebuilt collection can allocate nothing during a query while retaining a large set of keys and nodes. The report's heap measurements account for storage separately.
 
-## Fresh versus reused queries
+## Fixed versus Scalable
+
+```sh
+mise run benchmark:scalable
+```
+
+This short comparison covers **1,000 / 10,000 / 100,000** keys, Murmur3 and rapidhash, and all-hit/all-miss lookups. Fixed Bloom is sized for each final N; scalable starts at 1,000 and uses its default growth settings. Both request a **1% whole-filter target**. Their observed false-positive rates and storage are **not matched**, so this measures the default capacity models rather than equal-accuracy layouts.
+
+Each case uses two JVM forks, three 500 ms warmup iterations, and five 500 ms measurements per fork. Existing ASCII strings come from a broad shuffled query pool; the pool repeats and does not promise cold CPU caches. Neither Bloom uses Java's cached `String.hashCode`. Hits span the inserted set, including older layers. Construction, growth, and query allocation are outside the lookup timer.
+
+The offline report shows the sizes that actually ran, with timing confidence intervals and GC allocation metrics. An untimed pass checks every inserted value and probes 262,144 disjoint absent queries for observed false positives with 95% Wilson intervals. It also reports layer counts and bit-array payload bytes; those bytes exclude object headers, counters, and hashing workspace.
+
+A definite miss visits every layer; a hit can stop early. Scalable Bloom makes room for an unknown set size, with additional storage and lookup work. Treat short-run timings as preliminary and inspect their uncertainty. The [benchmarking reference](https://github.com/Transductive/presence/blob/main/docs/benchmarking.md) includes a longer confirmation command.
+
+The [browser growth example]({{ get_url(path="playground/") }}?example=scalable) demonstrates membership and allocation behavior. Browser Java timings are not evidence for native JVM performance.
+
+## Fresh versus Reused Queries
 
 A `String` stores its computed `hashCode` in that object. Reusing a query after its hash was computed lets a JDK collection reuse that value. Fresh input includes computing it. Equal text does not imply the same object, and ordinary method calls do not automatically intern strings.
 
 Report both paths with their labels. Fresh queries model incoming values; reused queries describe an already hashed working set. Query pools consume retained memory, so pool size and heap footprint belong beside the timing result. Input construction must also be understood when interpreting the benchmark boundary.
 
-## The large-N experiment
+## The Large-N Experiment
 
 ```sh
 mise run benchmark:large:smoke
@@ -54,7 +71,7 @@ mise run benchmark:large:flamegraph
 
 Use the [benchmarking reference](https://github.com/Transductive/presence/blob/main/docs/benchmarking.md) for calibration, validation, memory requirements, and parameter overrides.
 
-## Follow the flamegraph
+## Follow the Flamegraph
 
 Flamegraphs show Presence frames under `io.transductive`. Wider bars mean more sampled execution passed through that frame. The focused view omits unrelated stacks; it is not a picture of all process time. The original JFR recording remains available for broader investigation.
 
@@ -66,6 +83,6 @@ mise run benchmark:flamegraph:render -- -PprofileRun=build/reports/benchmarks/YO
 
 To combine saved runs, configure `benchmark-review.local.json` from the repository example and run `mise run benchmark:review`. The generated HTML reflects the supplied runs, not a hard-coded list of sizes.
 
-## Interpret the result
+## Interpret the Result
 
 Look at error bars, forks, warmup, query distribution, working-set size, observed false-positive rate, and machine metadata. A win at one size is evidence about that experiment. A useful application-level win includes the exact downstream work and the cost of false positives.

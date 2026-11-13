@@ -46,8 +46,8 @@ class LargeBenchmarkReportTest {
         assertEquals(results.size(), html.split("<svg ", -1).length - 1);
         assertTrue(html.contains("<td>Blocked Bloom · rapidhash</td><td>42.000</td>"));
         assertTrue(html.contains("<td>JDK HashSet</td><td>57.000</td>"));
-        assertTrue(html.indexOf("<h2>N = 50,000,000") < html.indexOf("Supplementary: reused queries"));
-        assertTrue(html.indexOf("<h2>N = 1,000") > html.indexOf("Supplementary: reused queries"));
+        assertTrue(html.indexOf("<h2>N = 50,000,000") < html.indexOf("Supplementary: Reused Queries"));
+        assertTrue(html.indexOf("<h2>N = 1,000") > html.indexOf("Supplementary: Reused Queries"));
         assertFalse(html.contains("<h2>N = 10,000,000"));
         assertFalse(html.contains("JDK HashMap"));
         assertTrue(html.contains("Smoke run: harness wiring only; not performance evidence."));

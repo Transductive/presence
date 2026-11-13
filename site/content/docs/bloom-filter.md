@@ -1,12 +1,14 @@
 +++
-title = "Inside the Bloom filter"
+title = "Inside the Bloom Filter"
 description = "The bit budget, the probes, and what each answer means."
 weight = 2
 +++
 
 A Bloom filter represents membership with an array of bits. It retains neither your keys nor a list of exact entries.
 
-## Insert and query
+This guide describes fixed-size `BloomFilter`. For unknown capacity, see [Scalable Bloom](@/docs/scalable-bloom-filter.md), which adds layers with a shared false-positive budget.
+
+## Insert and Query
 
 Insertion sets `k` positions in an `m`-bit array. A lookup checks the positions for the same encoded value:
 
@@ -15,7 +17,7 @@ Insertion sets `k` positions in an `m`-bit array. A lookup checks the positions 
 
 Repeated insertion is harmless. Clearing bits to remove a value could erase bits shared with another key, so this implementation does not support deletion.
 
-## Size the filter
+## Size the Filter
 
 For expected distinct insertions `n` and target false-positive probability `p`, the classical approximation gives:
 
@@ -28,7 +30,7 @@ At 10,000 values and 1%, that is **95,851 bits and 7 probes**. The backing bit s
 
 The probability is an approximate target, not an exact finite-filter upper bound. Double hashing and small or composite bit counts can produce repeating probes. Validate observed false-positive rates for workloads where the distinction matters.
 
-## Storage and probe sequence
+## Storage and Probe Sequence
 
 A JDK `BitSet` stores the bits. The default MurmurHash3 strategy produces a pair of 64-bit values. Unsigned reductions select a starting position and a step; a zero step becomes one. Probes follow:
 
@@ -38,7 +40,7 @@ position(i) = (start + i × step) mod m
 
 Incremental addition avoids repeated division. A precomputed reciprocal accelerates the initial reductions while preserving the exact unsigned remainder. The SHA-256 fallback uses its original seeded digest scheme instead.
 
-## The instance contract
+## The Instance Contract
 
 | Property | Current behavior |
 | --- | --- |
@@ -53,7 +55,7 @@ Incremental addition avoids repeated division. A precomputed reciprocal accelera
 
 Concurrent queries need synchronization because the instance reuses mutable hashing workspace. Do not infer thread safety from the absence of inserts.
 
-## Read the theory
+## Read the Theory
 
 The starting reference is Justin Wyss-Gallifent's **CMSC 420: Bloom Filters**, University of Maryland, November 30, 2023. The implementation follows its treatment of insertion, lookup, and sizing in sections 2–4.
 

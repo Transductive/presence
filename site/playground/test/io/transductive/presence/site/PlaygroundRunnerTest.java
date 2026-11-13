@@ -30,6 +30,20 @@ class PlaygroundRunnerTest {
         assertEquals("{\"ok\":true,\"output\":\"世界: true\\nstderr\\n\"}", PlaygroundRunner.run().replace("\\r\\n", "\\n"));
     }
 
+    @Test void scalableExampleGrowsAndPreservesEveryInsertedValue() throws Exception {
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+                System.getProperty("presence.playground.scalableExample")));
+        assertEquals("", PlaygroundRunner.compile(source, LIBRARY));
+        String result = PlaygroundRunner.run();
+        assertTrue(result.startsWith("{\"ok\":true,"), result);
+        assertTrue(result.contains("Starting layers: 1"), result);
+        assertTrue(java.util.regex.Pattern.compile("Layers after 5,000 inserts: ([2-9]|[1-9][0-9]+)\\\\[rn]")
+                .matcher(result).find(), result);
+        assertTrue(result.contains("First member: true"), result);
+        assertTrue(result.contains("Last member:  true"), result);
+        assertTrue(result.contains("Inserted values missing: 0"), result);
+    }
+
     @Test void reportsLineNumbersAndDoesNotReuseAnEarlierProgram() throws Exception {
         assertEquals("", PlaygroundRunner.compile(program("System.out.print(42);"), LIBRARY));
         assertTrue(PlaygroundRunner.compile("public class Playground { broken }", LIBRARY).contains("Line 1:"));

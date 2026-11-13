@@ -1,7 +1,10 @@
-# Bloom filter design
+# Bloom Filter Design
 
 Presence's first membership structure is an insert-only, fixed-capacity Bloom
 filter. Its public API is `io.transductive.presence.bloom.BloomFilter<T>`.
+
+For growing sets, see the separate [Scalable Bloom filter](scalable-bloom-filter.md).
+`BloomFilter` retains the API and bit layout described here.
 
 ## Algorithm
 
@@ -16,7 +19,7 @@ have no false negatives. Positive answers may be false positives. Repeated
 insertion is harmless. Removing a value by clearing its bits could erase bits
 shared with another value, so individual removal is not supported.
 
-## Storage and hashing
+## Storage and Hashing
 
 A JDK `BitSet` stores the bits. `HashingStrategy.MURMUR3_128` is the default:
 Presence implements Austin Appleby's [MurmurHash3 x64 128-bit algorithm](https://github.com/aappleby/smhasher/blob/master/src/MurmurHash3.cpp)
@@ -152,7 +155,7 @@ bit probes, and `hashingStrategy()` reports the selected strategy. Murmur3 deriv
 all probes from one 128-bit hash; rapidhash and Komihash derive them from two
 separately seeded 64-bit hashes. SHA-256 computes a digest for each probe.
 
-## Encoding contract
+## Encoding Contract
 
 Encoded bytes define identity rather than `Object.equals`. An encoder must
 produce the same bytes for the same logical value on every call. Do not mutate
@@ -163,7 +166,7 @@ Inputs and encoded arrays must be non-null. Empty strings and empty arrays are
 valid. The string factory uses UTF-8 without Unicode normalization. Neither the
 input values nor their byte arrays are retained.
 
-## Operational limits
+## Operational Limits
 
 - The filter is fixed size, with no removal, resizing, persistence, or merge
   operation. It does not track an exact element count.

@@ -80,6 +80,11 @@ description = "Check benchmark wiring with a short N=1000 run (not performance e
 run = "sh ./gradlew benchmarkSmoke"
 run_windows = "cmd /d /c gradlew.bat benchmarkSmoke"
 
+[tasks."benchmark:scalable"]
+description = "Compare fixed vs scalable Bloom at N=1000, 10000, 100000 and write a browser report"
+run = "sh ./gradlew benchmarkScalable"
+run_windows = "cmd /d /c gradlew.bat benchmarkScalable"
+
 [tasks."benchmark:flamegraph"]
 description = "Profile with JFR and generate browser-ready HTML flamegraphs"
 run = "sh ./gradlew benchmarkFlamegraph"

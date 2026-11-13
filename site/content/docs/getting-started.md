@@ -1,12 +1,12 @@
 +++
-title = "Your first filter"
+title = "Your First Filter"
 description = "From a fresh checkout to your first membership check."
 weight = 1
 +++
 
 Presence targets **Java 21**. The current `0.1.0-SNAPSHOT` is built from source and published to your local Maven repository; it is not on Maven Central yet.
 
-## Set up once
+## Set Up Once
 
 Install [mise](https://mise.jdx.dev/installing-mise.html) for Windows, macOS, or Linux, then:
 
@@ -20,7 +20,7 @@ mise run publish:local
 
 Mise provisions the pinned JDK and Zola. The Gradle wrapper pins the build system. `mise run` supplies `JAVA_HOME` and the tool paths for every command; shell activation is optional.
 
-## Add the dependency
+## Add the Dependency
 
 In your application's Gradle Kotlin build:
 
@@ -37,7 +37,7 @@ dependencies {
 
 The published library has **zero runtime dependencies**. Website and benchmark tooling do not enter the library JAR.
 
-## Ask a membership question
+## Ask a Membership Question
 
 ```java
 import io.transductive.presence.bloom.BloomFilter;
@@ -53,7 +53,21 @@ The constructor plans for 10,000 distinct values at an approximate 1% false-posi
 
 Inserted values remain discoverable with consistent encoding and properly synchronized access. More inserts than planned increase the false-positive rate. Individual removal is not supported.
 
-## Use it before expensive work
+## Let an Unknown Set Grow
+
+Choose scalable Bloom when an initial estimate is easier to provide than a final size:
+
+```java
+import io.transductive.presence.bloom.ScalableBloomFilter;
+
+var growing = ScalableBloomFilter.forStrings(1_000, 0.01);
+growing.put("alice");
+growing.mightContain("alice"); // true, including after later growth
+```
+
+It adds larger layers as bits fill, using a shared probability budget. Memory grows, and a definite miss checks every layer. Read [the growth guide](@/docs/scalable-bloom-filter.md) or [run the example in your browser]({{ get_url(path="playground/") }}?example=scalable).
+
+## Use It before Expensive Work
 
 An illustrative lookup flow:
 
@@ -66,7 +80,7 @@ return repository.findByKey(key);
 
 Keep the filter populated with every value that the backing source could return. Updates, lifecycle, and synchronization belong to your application. A filter missing an insertion cannot safely guard that source.
 
-## Open it in IntelliJ IDEA
+## Open It in IntelliJ IDEA
 
 Open the repository as a Gradle project. Run `mise where java` to print the installed JDK directory, and select that directory for both the Project SDK and Gradle JVM. Run the JUnit tests from the IDE or use `mise run test`.
 
