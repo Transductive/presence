@@ -1,6 +1,6 @@
-# Reference material
+# Reference Material
 
-## Fixed-size Bloom filter
+## Fixed-Size Bloom Filter
 
 - **Title:** CMSC 420: Bloom Filters
 - **Author:** Justin Wyss-Gallifent, University of Maryland
@@ -16,7 +16,7 @@ library JAR. Sections 2–4 inform the basic algorithm; sections 5–7 explain r
 false positives, and capacity planning. Counting filters are outside the initial
 implementation's scope.
 
-## Scalable Bloom filter
+## Scalable Bloom Filter
 
 - **Title:** Scalable Bloom Filters
 - **Authors:** Paulo Sérgio Almeida, Carlos Baquero, Nuno Preguiça, David Hutchison

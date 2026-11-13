@@ -1,5 +1,5 @@
 +++
-title = "The field guide"
+title = "The Field Guide"
 description = "Build with Presence. Understand the tradeoffs. Measure the result."
 sort_by = "weight"
 template = "docs.html"

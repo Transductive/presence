@@ -20,15 +20,15 @@ final class BenchmarkReport {
         String title() {
             return (prefilter ? "Prefilter" : lookup ? "Lookup" : "Construction") + " · N="
                     + String.format(Locale.ROOT, "%,d", size)
-                    + (lookup ? " · hits=" + hitPercent + "%" : " · all N inserts")
-                    + (lookup && !inputKind.equals("ASCII") ? " · input=" + inputKind : "")
+                    + (lookup ? " · Hits=" + hitPercent + "%" : " · All N Inserts")
+                    + (lookup && !inputKind.equals("ASCII") ? " · Input=" + inputKind : "")
                     + (scenario.isEmpty() ? "" : " · " + scenario)
                     + (lookup ? " · " + String.format(Locale.ROOT, "%,d", BenchmarkData.queryCount(size, workingSet))
-                            + " queries" : "");
+                            + " Queries" : "");
         }
 
         String scalingTitle() {
-            return (prefilter ? "Prefilter scaling" : "Lookup scaling")
+            return (prefilter ? "Prefilter Scaling" : "Lookup Scaling")
                     + (inputKind.equals("ASCII") ? "" : " · " + inputKind)
                     + (scenario.isEmpty() ? "" : " · " + scenario);
         }
@@ -65,7 +65,7 @@ final class BenchmarkReport {
                     : workingSet + " · " + queryMode;
             if (prefilter) {
                 scenario += (scenario.isEmpty() ? "" : " · ") + parameter(result, "strategy", "RAPIDHASH_V3")
-                        + " · downstream tokens=" + parameter(result, "downstreamTokens", "0");
+                        + " · Downstream Tokens=" + parameter(result, "downstreamTokens", "0");
             }
             var key = new Workload(lookup, prefilter, Integer.parseInt(params.getParam("N")),
                     lookup ? Integer.parseInt(params.getParam("hitPercent")) : 0,
@@ -175,7 +175,7 @@ final class BenchmarkReport {
                 + "Lower is better. Compare within the same hit ratio; see the detailed tables for uncertainty "
                 + "and allocation. A missing result for an included implementation is shown as n/a.</p>");
         for (int hitPercent : hitRates) {
-            html.append("<h3>").append(hitPercent).append("% hits · ns/lookup</h3>")
+            html.append("<h3>").append(hitPercent).append("% Hits · ns/lookup</h3>")
                     .append("<div class='table-wrap'><table class='scaling-table'><thead><tr><th>N · stored keys</th>");
             for (String method : methods) {
                 html.append("<th>").append(label(method)).append("</th>");

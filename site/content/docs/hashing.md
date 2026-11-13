@@ -1,12 +1,12 @@
 +++
-title = "Hashing & encoding"
+title = "Hashing & Encoding"
 description = "Choose a strategy without changing the membership contract."
 weight = 4
 +++
 
 Presence implements its hashing in pure Java. MurmurHash3 x64 128-bit is the default. The other strategies are selectable at construction and stay fixed for the lifetime of the filter.
 
-## Choose a strategy
+## Choose a Strategy
 
 ```java
 import io.transductive.presence.bloom.BloomFilter;
@@ -30,13 +30,13 @@ In fixed-size `BloomFilter`, the two-seed strategies can avoid computing the sec
 
 These fixed seeds are not secret. The noncryptographic strategies are intended for ordinary membership workloads, not cryptographic authentication. Speed depends on the CPU, JVM, input length, and access pattern. [Measure the complete lookup](@/docs/performance.md).
 
-## Strings without per-lookup encoding arrays
+## Strings without Per-Lookup Encoding Arrays
 
 `forStrings` hashes UTF-8 through a bounded, reusable workspace. It handles ASCII, Unicode, and malformed surrogate replacement without retaining the queried string or growing a key cache.
 
 Avoiding a fresh UTF-8 array removes a source of allocation. It does not mean the filter takes no memory. Construction allocates the bit storage and workspace; the allocation benchmark measures bytes allocated per operation after setup.
 
-## Bring another type
+## Bring Another Type
 
 A deterministic byte encoder defines value identity:
 

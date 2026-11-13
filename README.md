@@ -12,7 +12,7 @@ can verify against your source of truth.
 
 **Java 21 · Zero runtime dependencies · MIT licensed**
 
-## A first look
+## A First Look
 
 ```java
 import io.transductive.presence.bloom.BloomFilter;
@@ -46,7 +46,7 @@ with the set, and a definite miss checks every layer. Repeated inserts do not
 consume new capacity. See [Scalable Bloom](docs/scalable-bloom-filter.md) for
 growth settings, probability budgeting, and operational limits.
 
-## Features & roadmap
+## Features & Roadmap
 
 | Feature | Status |
 | --- | --- |
@@ -66,12 +66,12 @@ growth settings, probability budgeting, and operational limits.
 layers. Both are insert-only. Proposed features are directions for future
 releases; feedback and contributions will help shape the roadmap.
 
-## Get started
+## Get Started
 
 Presence is in early development. To try the current `0.1.0-SNAPSHOT`, build it
 from source and publish it to your local Maven repository.
 
-### Set up your tools
+### Set Up Your Tools
 
 Install [mise-en-place](https://mise.jdx.dev/installing-mise.html) for your platform:
 
@@ -97,7 +97,7 @@ definition. [Mise tasks](https://mise.jdx.dev/tasks/) supply the JDK and
 `JAVA_HOME` automatically on Windows, macOS, and Linux, without requiring shell
 activation.
 
-### Build and publish locally
+### Build and Publish Locally
 
 On any supported platform:
 
@@ -121,7 +121,7 @@ dependencies {
 This snapshot is available through your local build; it has not been published
 to Maven Central.
 
-## Bring your own types
+## Bring Your Own Types
 
 Provide a deterministic byte encoder to define what makes a value unique:
 
@@ -147,7 +147,7 @@ and malformed surrogate replacement. It avoids a fresh encoded array on each
 lookup. Custom encoders control their own allocation; use `Function.identity()`
 when your inputs are already `byte[]`.
 
-## Fixed-size Bloom filter behavior
+## Fixed-Size Bloom Filter Behavior
 
 - **A negative answer is definite.** A positive answer may be a false positive.
 - **Capacity is planned up front.** Adding more values increases the
@@ -176,7 +176,7 @@ var sha = BloomFilter.forStrings(10_000, 0.01, HashingStrategy.SHA_256);
 
 ## Develop with Presence
 
-### Documentation website
+### Documentation Website
 
 The website uses **Zola + DevLab**, styled with Transductive's *Theory Meets the
 Machine* editorial system. It combines Markdown guides, local browser search,
@@ -204,7 +204,7 @@ to GitHub Pages after the repository's Pages source is set to **GitHub Actions**
 See the [publishing setup](site/README.md#publish-with-github-pages) for the
 one-time configuration and manual deployment option.
 
-### Developer commands
+### Developer Commands
 
 Start with `mise tasks ls` (or `mise run`) to list the available commands:
 
@@ -254,7 +254,7 @@ fixtures. Use `mise run benchmark:check` explicitly when working on the harness.
 Use the Gradle wrapper and run or debug `BloomFilterTest` from the editor.
 [Full IDE setup and contribution guide →](CONTRIBUTING.md)
 
-### Test workflow changes locally
+### Test Workflow Changes Locally
 
 Mise installs pinned [actionlint](https://github.com/rhysd/actionlint) and
 [act](https://nektosact.com/) versions when their tasks run. They are optional;
@@ -288,7 +288,7 @@ No repository secrets are required for this build. If you need a GitHub token
 for API rate limits, use `mise run ci:local -- --secret GITHUB_TOKEN` to enter it
 interactively. Optional root `.secrets`, `.env`, and `.vars` files are ignored by Git.
 
-## Benchmark and profile
+## Benchmark and Profile
 
 ```sh
 mise run benchmark
@@ -325,7 +325,7 @@ The heap report distinguishes the reachable object graph from memory added
 beyond already-shared keys. These answer different questions from allocation
 per lookup.
 
-## Reading behind the code
+## Reading behind the Code
 
 The Bloom filter follows the insertion and lookup algorithms in Justin
 Wyss-Gallifent's *CMSC 420: Bloom Filters* (University of Maryland, 2023).

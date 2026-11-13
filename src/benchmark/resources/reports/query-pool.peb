@@ -1,7 +1,7 @@
 {% extends "layout.peb" %}
 {% block content %}
 <p class="notice">Zero allocation during lookup says nothing about objects already retained. Both benchmark query modes retain payloads; a streaming application need not retain this pool.</p>
-<section><h2>Reachable query-pool graphs</h2>
+<section><h2>Reachable Query-Pool Graphs</h2>
 <p>{{ method }}. Fresh input retains character arrays; reused, prehashed queries retain Strings and byte arrays. Both include the outer reference array. Measurements exclude membership structures, the harness, and transient per-operation String construction.</p>
 {% set headers = ["Stored keys", "Query mode", "True hits", "Query payloads", "Reachable pool MiB", "Objects"] %}
 {% include "table.peb" %}

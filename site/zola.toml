@@ -36,7 +36,7 @@ links = [
 
 [extra.devlab.collections.manual]
 section = "docs/_index.md"
-title = "Presence / field guide"
+title = "Presence / Field Guide"
 show_breadcrumbs = true
 show_toc = true
 show_pagination = true

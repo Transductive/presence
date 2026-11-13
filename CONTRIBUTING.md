@@ -3,7 +3,7 @@
 Thanks for helping build Presence at Transductive. Bug reports, API feedback,
 tests, and new membership structures all help move the project forward.
 
-## Build and test
+## Build and Test
 
 Use the JDK pinned in `mise.toml` and the committed Gradle wrapper. Follow the
 setup instructions in [README.md](README.md), then run the
@@ -66,13 +66,25 @@ insertion and lookup must always agree, and sizing targets are approximate.
 An IDE launched from the desktop may not inherit mise's shell environment;
 selecting the JDK explicitly handles that. Any installed JDK 21 also works.
 
-## Toolchain updates
+## Toolchain Updates
 
 Update the Java pin in `mise.toml` deliberately, then run `mise install`
 and `mise run ci`. Keep Java on the project's target major version, 21.
 To update Gradle, run its `wrapper` task with the new version and official
 distribution SHA-256 checksum, then run the wrapper task again using the new
 wrapper. Commit both scripts, the wrapper JAR, and its properties together.
+
+## Writing Titles
+
+Use title case for page titles, section headings, cards, and example names:
+**Make Your First Lookup**, **Grow with the Set**, and **Fixed-Size Bloom**.
+Capitalize the first and last words, nouns, pronouns, verbs, adjectives, and
+adverbs. Keep articles, coordinating conjunctions, and prepositions lowercase
+within a title. Preserve API names, acronyms, units, and intentional all-caps
+display styling. Body copy, instructions, and action labels use sentence case.
+
+Apply this convention to the website, repository documentation, and generated
+report templates. Edit the authored source; generated HTML stays ignored.
 
 ## Benchmarks
 

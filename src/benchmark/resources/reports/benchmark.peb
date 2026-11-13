@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Presence · Benchmark review</title>
+  <title>Presence · Benchmark Review</title>
   <style>
     :root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; color: #161616; background: #f5f5f5; }
     body { max-width: 1140px; margin: auto; padding: 40px 24px 72px; }
@@ -31,7 +31,7 @@
 <body>
   <header>
     <div class="brand">Transductive / Presence</div>
-    <h1>Membership, measured.</h1>
+    <h1>Membership, Measured.</h1>
     {% if SCALABLE %}<p>Fixed-size vs. Scalable Bloom · known final size vs. growth from 1,000 keys</p>
     {% else %}<p>Presence Bloom hashing strategies vs. JDK HashSet and HashMap</p>{% endif %}
     <p class="meta">{{ENVIRONMENT}}</p>
@@ -40,7 +40,7 @@
     <p><a href="results.json">Raw JMH JSON</a> · <a href="run.txt">Run settings</a> · Mode: {{MODE}}</p>
   </header>
   <section>
-    <h2>Read the comparison</h2>
+    <h2>Read the Comparison</h2>
     {% if SCALABLE %}
     <p>One lookup into a prebuilt filter. Fixed Bloom is sized for the final N. Scalable starts at 1,000 and doubles slice sizes as needed, with a 0.9 tightening ratio. Both target 1% for the whole filter. <strong>Measured false-positive rates and memory are not matched:</strong> scalable's spare capacity and tighter layers can make it more selective. Growth and insertion are outside these timings.</p>
     <p>All contenders use identical deterministic keys and shuffled query pools. Hits are sampled uniformly across the inserted set, not concentrated in the newest layer. BROAD uses the next power of two at least max(65,536, N); HOT uses 4,096. Pools repeat, so BROAD does not imply cold caches. CACHED means existing strings here: neither Bloom filter caches String.hashCode(). FRESH, when selected, includes constructing a new query string in the timed operation.</p>
@@ -58,7 +58,7 @@
   </section>
   {{SCALING | raw}}
   {% if SCALABLE %}
-  <section><h2>Growth, storage, and accuracy</h2>
+  <section><h2>Growth, Storage, and Accuracy</h2>
     <p>Separate untimed validation checks every inserted key and 262,144 disjoint absent queries. Payload includes 64-bit storage rounding but excludes object headers, counters, and hashing workspace. Intervals are 95% Wilson intervals for the sampled false-positive rate. <a href="scalable-evidence.csv">Raw evidence CSV</a>.</p>
     <div class="table-wrap"><table><thead><tr><th>N</th><th>Input</th><th>Implementation</th><th>Layers</th><th>Payload bytes</th><th>Observed FPR</th><th>95% interval</th></tr></thead>
       <tbody>{% for row in SCALABLE_ROWS %}<tr>{% for cell in row %}<td>{{cell}}</td>{% endfor %}</tr>{% endfor %}</tbody>

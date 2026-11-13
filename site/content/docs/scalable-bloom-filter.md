@@ -1,5 +1,5 @@
 +++
-title = "Grow with the set"
+title = "Grow with the Set"
 description = "Scalable Bloom: an initial estimate, a shared probability budget, and room to grow."
 weight = 3
 +++
@@ -8,7 +8,7 @@ Use `ScalableBloomFilter` when the final number of distinct values is unknown. S
 
 [Try the growth example in your browser]({{ get_url(path="playground/") }}?example=scalable)
 
-## Start small
+## Start Small
 
 ```java
 import io.transductive.presence.bloom.ScalableBloomFilter;
@@ -25,7 +25,7 @@ members.bitSize();               // bit-array payload, not the full heap footpri
 
 The 1,000 is an **initial sizing estimate**, not a lifetime limit or an exact rollover threshold. The 1% is a target for the **whole filter**, shared across its layers. As with fixed Bloom, a negative is definite and a positive needs verification against your source of truth.
 
-## Choose your capacity model
+## Choose Your Capacity Model
 
 | | Fixed-size `BloomFilter` | `ScalableBloomFilter` |
 | --- | --- | --- |
@@ -37,7 +37,7 @@ The 1,000 is an **initial sizing estimate**, not a lifetime limit or an exact ro
 
 If you know the final size, fixed Bloom is the simpler starting point. Scalable Bloom accommodates an unknown size with additional memory and lookup work. Neither retains the original keys, supports individual deletion, nor provides an exact element count.
 
-## How growth works
+## How Growth Works
 
 Each layer divides its bit array into slices, one per probe. An insert goes into the newest layer. Before changing bits, the filter checks whether any slice would exceed half full; if so, it allocates the next layer. Allocation depends on occupied bits and rounding, not the count of calls to `put`.
 
@@ -45,7 +45,7 @@ Queries check layers **newest first**. Any positive means possibly present. Only
 
 An insertion already matching any layer is a no-op, including a false positive. Because layers never lose bits, that key remains discoverable. Repeated values therefore do not force growth.
 
-## Share the probability budget
+## Share the Probability Budget
 
 For whole-filter target `P` and tightening ratio `r`, layer `i` receives:
 
@@ -67,7 +67,7 @@ A factor of 4 usually produces fewer layers, with larger allocation jumps and mo
 
 `estimatedFalsePositiveProbability()` uses slice occupancy to estimate the whole-filter rate. It is **not a measured false-positive rate**. The probability model assumes uniform, independent probes; our deterministic hash mixing does not establish a guarantee for arbitrary or adversarial inputs. Measure representative absent values when accuracy matters.
 
-## Lifecycle and limits
+## Lifecycle and Limits
 
 - Accepted values remain discoverable with consistent encoding and properly synchronized access.
 - Shared instances need external synchronization, including concurrent queries, because hashing workspace is reused.
@@ -75,7 +75,7 @@ A factor of 4 usually produces fewer layers, with larger allocation jumps and mo
 - `bitSize()` excludes object headers, per-slice counters and scratch space, and hashing workspace.
 - Each layer is limited to `Integer.MAX_VALUE` logical bits. Unsupported initial sizing throws `IllegalArgumentException`; growth beyond that limit throws `IllegalStateException` before changing membership. Available heap may impose an earlier limit.
 
-## Measure the tradeoff
+## Measure the Tradeoff
 
 ```sh
 mise run benchmark:scalable
@@ -83,7 +83,7 @@ mise run benchmark:scalable
 
 The focused JMH run compares fixed and scalable Bloom with Murmur3 and rapidhash at 1,000, 10,000, and 100,000 values. Fixed Bloom knows the final size; scalable starts at 1,000 throughout. Reports include hit/miss timings, layer counts, bit storage, and separately measured false positives. Both target 1%, but their observed rates and storage are not matched. See [the performance guide](@/docs/performance.md#fixed-versus-scalable) before interpreting the timing.
 
-## Read the theory
+## Read the Theory
 
 This implementation follows the layered, partitioned design in **Scalable Bloom Filters**, by Paulo Sérgio Almeida, Carlos Baquero, Nuno Preguiça, and David Hutchison (2007).
 

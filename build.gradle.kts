@@ -354,7 +354,7 @@ val siteJavadoc = tasks.register<Javadoc>("siteJavadoc") {
     (options as StandardJavadocDocletOptions).apply {
         windowTitle = "Presence API"
         docTitle = "Presence $version API"
-        header = "<a href=\"{@docRoot}/../\">Presence / Field guide</a>"
+        header = "<a href=\"{@docRoot}/../\">Presence / Field Guide</a>"
         addBooleanOption("notimestamp", true)
         addStringOption("-add-stylesheet", file("site/javadoc/api-theme.css").absolutePath)
     }

@@ -8,7 +8,7 @@ weight = 7
 
 This site uses **Zola 0.23.6**, a Rust static-site generator, and **DevLab 0.9.0**. Markdown holds the guides; Tera templates assemble the pages. Java's standard Javadoc tool generates the API reference from the same source used to build the library.
 
-## Theory meets the machine
+## Theory Meets the Machine
 
 The visual language follows Transductive's *Editorial System v0.1*: ink `#090908`, paper `#F8F6F1`, signal red `#DB2913`, precise rules, and quiet annotations. Bodoni Moda carries editorial headings, Anton provides condensed display type, and IBM Plex Mono carries labels and code. Long-form prose uses the system sans-serif for reading.
 
@@ -24,7 +24,7 @@ The fonts are served locally under the SIL Open Font License. DevLab and its inc
 
 The site has no analytics, external font requests, or hosted search service. Documentation search runs in your browser. API search is provided by Javadoc.
 
-## Java in the browser
+## Java in the Browser
 
 The [playground](@/playground.md) is built with [CheerpJ 5.0](https://cheerpj.com/).
 Selecting **Run** loads its Java 21 runtime from CheerpJ's CDN, then compiles and

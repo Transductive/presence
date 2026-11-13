@@ -66,7 +66,7 @@ public final class BenchmarkReview {
             }
         }
         Map<String, Object> model = model(runs);
-        model.put("title", spec.has("title") ? text(spec, "title") : "Membership, measured.");
+        model.put("title", spec.has("title") ? text(spec, "title") : "Membership, Measured.");
         model.put("notes", spec.has("notes") ? spec.getAsJsonArray("notes").asList().stream()
                 .map(value -> value.getAsString()).toList() : List.of());
         Map<Path, String> attachments = new LinkedHashMap<>();
@@ -193,7 +193,7 @@ public final class BenchmarkReview {
             profiles.addAll(profiles(run));
         }
         Map<String, Object> context = new LinkedHashMap<>();
-        context.put("title", "Membership, measured.");
+        context.put("title", "Membership, Measured.");
         context.put("caseCount", cases);
         context.put("profileCount", profileCases);
         context.put("smokeCount", smokeCases);
@@ -278,7 +278,7 @@ public final class BenchmarkReview {
                     "high", decimal(250 + 500 * (score + interval) / maximum), "score", number(score),
                     "shade", method.startsWith("blocked") ? "#707070" : method.startsWith("standard") ? "#202020" : "#bdbdbd"));
         }
-        return Map.of("title", "N = " + integer(workload.n()) + " · " + queryLabel(workload.mode()) + " · " + workload.hits() + "% true hits",
+        return Map.of("title", "N = " + integer(workload.n()) + " · " + queryLabel(workload.mode()) + " · " + workload.hits() + "% True Hits",
                 "run", run.name(), "smoke", run.mode().equals("smoke"), "pool", integer(workload.pool()),
                 "fresh", workload.mode().equals("FRESH"), "reference", workload.n() == 1_000,
                 "bars", bars, "height", bars.size() * 40 + 15, "rows", table);
@@ -338,7 +338,7 @@ public final class BenchmarkReview {
     }
 
     static String queryLabel(String mode) {
-        return mode.equals("FRESH") ? "fresh inputs" : "reused, prehashed queries";
+        return mode.equals("FRESH") ? "Fresh Inputs" : "Reused, Prehashed Queries";
     }
 
     private static String decimal(double value) {

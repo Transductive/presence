@@ -1,12 +1,12 @@
 +++
-title = "Develop & contribute"
+title = "Develop & Contribute"
 description = "One tool setup across Windows, macOS, and Linux."
 weight = 6
 +++
 
 Mise owns the developer commands and tool versions. Gradle owns compilation, tests, packaging, and reproducible build outputs.
 
-## Everyday commands
+## Everyday Commands
 
 ```sh
 mise tasks ls
@@ -21,7 +21,7 @@ Use `mise where java` for the JDK installation directory. `mise exec -- java -ve
 mise run test -- --tests '*BloomFilterTest'
 ```
 
-## Check CI locally
+## Check CI Locally
 
 ```sh
 mise run ci                # Clean Gradle build on your host
@@ -51,7 +51,7 @@ The build does not need repository secrets. For GitHub API rate limits, use
 `mise run ci:local -- --secret GITHUB_TOKEN` and enter a token at the prompt.
 Optional root `.secrets`, `.env`, and `.vars` files stay out of Git.
 
-## Work on the website
+## Work on the Website
 
 ```sh
 mise run site:serve
@@ -68,7 +68,7 @@ The complete static artifact is `build/site/`. Content lives in `site/content/`,
 
 For another deployment address, pass `-PsiteBaseUrl=https://example.com/presence/` after `--`. The build preserves the path prefix in navigation and asset URLs.
 
-## What belongs in core
+## What Belongs in Core
 
 Production code stays in `src/main/java` and uses the Java core library. Benchmarks have their own source set and dependencies. Website tools do not affect the library dependency graph.
 

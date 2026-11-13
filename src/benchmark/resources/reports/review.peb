@@ -9,14 +9,14 @@
 {% if smokeCount > 0 %}<p class="notice">Includes {{ smokeCount }} smoke cases. Smoke runs check wiring and are not performance evidence.</p>{% endif %}
 {% if accuracy is empty %}<p class="notice">Independent accuracy evidence was not attached. Timing alone does not establish matched false-positive rates.</p>{% endif %}
 {% for summary in overview %}
-<section><h2>Fresh-input misses at {{ summary.n }} stored keys</h2>
+<section><h2>Fresh-Input Misses at {{ summary.n }} Stored Keys</h2>
 <p class="wrap">{{ summary.run }} · {{ summary.pool }} query payloads. Each operation constructs a fresh String and checks membership. Negative time changes favor blocked Bloom. Full JDK comparisons follow below.</p>
 {% set headers = ["Strategy", "Standard ns ± error", "Blocked ns ± error", "Time change"] %}
 {% set rows = summary.rows %}{% include "table.peb" %}
 </section>
 {% endfor %}
 <section>
-  <h2>What the comparison includes</h2>
+  <h2>What the Comparison Includes</h2>
   <p>Fresh-input misses are the primary workload: each operation creates a String with an uncomputed Java hash, then checks membership. The time and allocation include String construction. This does not isolate a function receiving an already-allocated input.</p>
   <p>Reused, prehashed queries are supplementary. They assume String objects survive between checks and already contain their Java hash. Computing that hash uses an existing field; retaining those objects still costs memory.</p>
   <p>All contenders within a workload receive the same query contents. Fresh character arrays are materialized in traversal order, while reused String references are shuffled; freshly copied String bytes are warm. Comparing across modes does not isolate hash caching.</p>
@@ -27,12 +27,12 @@
 {% for panel in primary %}{% include "panel.peb" %}{% endfor %}
 {% if primary is empty %}<p>No fresh-input miss cases were supplied. The review does not invent missing workloads.</p>{% endif %}
 {% if supplementary is not empty %}
-<details><summary><strong>Supplementary: reused queries and hit controls</strong></summary>
+<details><summary><strong>Supplementary: Reused Queries and Hit Controls</strong></summary>
 {% for panel in supplementary %}{% include "panel.peb" %}{% endfor %}
 </details>
 {% endif %}
 <section>
-  <h2>Query-pool memory</h2>
+  <h2>Query-Pool Memory</h2>
   <p class="notice">Zero allocation per lookup does not mean zero retained memory. Both fixture modes retain query payloads. A streaming application need not retain this pool.</p>
   <p>Keep four quantities separate: filter bit-array payload, reachable query-pool graph, whole-JVM used heap, and newly allocated bytes per operation. Fresh-input JMH allocation includes String construction. Lookup-only audits exclude that construction.</p>
   {% for pool in pools %}
@@ -42,15 +42,15 @@
   <p><a href="{{ pool.link }}">Raw query-pool measurements and JVM layout</a></p>
   {% else %}<p>Query-pool graph measurements were not attached. Run <code>mise run benchmark:large:heap</code> to measure them separately.</p>{% endfor %}
 </section>
-{% set evidenceTitle = "Independent false-positive validation" %}
+{% set evidenceTitle = "Independent False-Positive Validation" %}
 {% for evidence in accuracy %}{% include "evidence.peb" %}{% endfor %}
-{% if calibrations is not empty %}<details><summary><strong>Calibration history and held-out gates</strong></summary>
+{% if calibrations is not empty %}<details><summary><strong>Calibration History and Held-Out Gates</strong></summary>
 <p>All supplied attempts are retained, including failed gates. Training and calibration holdouts do not replace independent validation at the timed sizes.</p>
-{% set evidenceTitle = "Calibration holdout" %}
+{% set evidenceTitle = "Calibration Holdout" %}
 {% for evidence in calibrations %}{% include "evidence.peb" %}{% endfor %}
 </details>{% endif %}
 <section>
-  <h2>JVM heap observations</h2>
+  <h2>JVM Heap Observations</h2>
   <p class="notice">Used JVM heap after requesting GC includes the selected structure, query pool, and harness. GC completion is not guaranteed. These are not exclusive retained sizes, process RSS, or allocation per lookup.</p>
   <p>One row per setup observation. Bit-array payload excludes object headers and workspace; zero is shown for exact collections. The whole-JVM observation already includes the query pool: do not add it again. Build times are setup observations, not dedicated construction benchmarks.</p>
   {% if heap is not empty %}
@@ -67,7 +67,7 @@
   {% else %}<p>No JFR profiles requested for this run or supplied in this review.</p>{% endfor %}
 </section>
 <section>
-  <h2>Inspect and reproduce</h2>
+  <h2>Inspect and Reproduce</h2>
   <p>Report dependencies and templates belong to the benchmark source set. The published Presence library remains dependency-free. Generated HTML is local output; no machine's results are baked into the templates.</p>
   {% if manifest %}<p><a href="review-input.json">Input manifest</a> · All selected run directories and evidence JSON were copied into this review.</p>{% endif %}
   {% for source in sources %}

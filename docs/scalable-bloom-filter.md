@@ -1,4 +1,4 @@
-# Scalable Bloom filter
+# Scalable Bloom Filter
 
 `io.transductive.presence.bloom.ScalableBloomFilter<T>` represents a growing set
 without retaining its keys. An initial estimate controls the first allocation;
@@ -6,7 +6,7 @@ it is not a lifetime insertion limit. The implementation follows the layered,
 partitioned design in Almeida, Baquero, Preguiça, and Hutchison's
 [*Scalable Bloom Filters*](../resources/scalable-bloom-filters.pdf).
 
-## Use it
+## Use It
 
 ```java
 import io.transductive.presence.bloom.ScalableBloomFilter;
@@ -45,7 +45,7 @@ Defaults are doubling slice sizes and a tightening ratio of 0.9. A factor of 4
 usually creates fewer layers, with larger allocation jumps and more unused space
 immediately after growth. The existing fixed-size `BloomFilter` is unchanged.
 
-## Layers and the probability budget
+## Layers and the Probability Budget
 
 For whole-filter target `P` and tightening ratio `r`, layer `i` receives budget
 `P × (1 − r) × r^i`. The sum over all layers is at most `P`. With `P = 1%` and
@@ -68,7 +68,7 @@ false positive, the key remains discoverable because no layer loses bits.
 This keeps repeated inserts from consuming new capacity without storing an
 exact set of keys or claiming an exact distinct-element count.
 
-## Lookup and hashing
+## Lookup and Hashing
 
 Layers are checked newest first. Any positive gives a possible match; only all
 negative answers prove absence. A definite miss therefore checks every layer.
@@ -91,7 +91,7 @@ deterministic pseudorandom mixing, not truly independent random functions. The
 target and estimate are not guarantees for adversarial or correlated inputs;
 test the observed rate on representative data. The hashing seeds are not secret.
 
-## Operational contract
+## Operational Contract
 
 - Accepted values have no false negatives with consistent encoding and properly
   synchronized access. Growth preserves all earlier layers.
@@ -106,7 +106,7 @@ test the observed rate on representative data. The hashing seeds are not secret.
 - A positive is not proof of membership. Discarding records based only on a
   positive answer implements approximate, potentially lossy deduplication.
 
-## Try and measure
+## Try and Measure
 
 Run `mise run site:serve`, open `/playground/?example=scalable`, and run the
 growth example against the built Presence JAR. It starts at 1,000, inserts 5,000

@@ -73,7 +73,7 @@ fixtures, or execute timed benchmarks. Run `mise run benchmark:check` explicitly
 to compile the harness and run fixture tests. All benchmark commands are manual;
 there is no comment-triggered CI workflow yet.
 
-## Open the reports
+## Open the Reports
 
 Successful runs finish with a browser URL and local path, for example:
 
@@ -103,7 +103,7 @@ needed. Each run has a separate directory containing:
 run you want to preserve before cleaning. Failed runs may leave partial raw
 artifacts, but do not print a success link or generate a completed report.
 
-## Change the workload
+## Change the Workload
 
 Arguments after `--` are Gradle properties:
 
@@ -176,7 +176,7 @@ larger than the measured membership structures alone. The example runs six
 cases (three implementations at N=1,000 and N=5,000,000), with normal full-run
 forks and measurement settings. Keep heap settings aligned when comparing runs.
 
-## What is measured
+## What Is Measured
 
 **Lookup:** one membership query against a structure populated during trial
 setup. The query cursor and array read are included equally for all seven
@@ -238,7 +238,7 @@ JMH separately measures timing and process-wide allocation in fresh forks. Its
 GC metric includes harness/background activity, so small fractional B/op can
 remain even when the lookup-thread audit measures zero. Raw values are preserved.
 
-## Exact answers with a Bloom prefilter
+## Exact Answers with a Bloom Prefilter
 
 `benchmark:prefilter` compares direct downstream membership with Bloom followed
 by the same downstream membership on positives. Both return exact answers.
@@ -258,7 +258,7 @@ suite, rather than subtracting these scores from plain membership timings.
 The 1% setting is a design target, not a guarantee that each finite query pool
 observes exactly 1% false positives.
 
-## Live heap footprint
+## Live Heap Footprint
 
 `benchmark:heap` uses benchmark-only [OpenJDK JOL](https://github.com/openjdk/jol)
 0.17, with no additions to the library's runtime dependency graph. It constructs
@@ -305,7 +305,7 @@ a size at which every Bloom lookup must beat a HashMap lookup. Cached String
 hashes, key size, cache residency, hit rate, hashing work, and downstream cost
 all matter; the separate suites expose those differences.
 
-## Large filters and the blocked experiment
+## Large Filters and the Blocked Experiment
 
 The separate large fixture compares only Murmur3 and rapidhash v3, each with
 the existing Bloom layout and an experimental blocked layout, plus JDK HashSet
@@ -402,7 +402,7 @@ requesting GC. That heap includes the selected structure, query pool, and
 harness; it is not an exclusive retained graph measurement. GC is requested,
 not guaranteed. Timed and profiled results are kept separate.
 
-## Your own browser review
+## Your Own Browser Review
 
 Large benchmark commands generate the grayscale review automatically from the
 cases that actually ran. The HTML uses checked-in [Pebble](https://pebbletemplates.io/)
@@ -472,7 +472,7 @@ zero runtime dependencies. Generated `.html` / `.htm`, `build/`, and the local
 review manifest are ignored by Git. Editable `.peb` templates and the example
 manifest are tracked, so every contributor can generate their own results.
 
-## Flamegraphs on all three platforms
+## Flamegraphs on All Three Platforms
 
 The profile command uses JMH's built-in Java Flight Recorder profiler, which
 starts recording for the measurement phase after warmup. It converts recordings
