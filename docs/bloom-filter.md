@@ -55,7 +55,7 @@ positions.
 
 The ports match 4,095 vectors per algorithm generated from pinned upstream C
 implementations, including the two Bloom seeds. See the
-[reproducible reference generator](../src/test/reference/README.md) and
+[reproducible reference generator](../presence/src/test/reference/README.md) and
 [upstream attributions and licenses](../NOTICE).
 
 For these four strategies, the two 64-bit values supply a starting position and a step, each reduced modulo

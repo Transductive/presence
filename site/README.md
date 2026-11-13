@@ -20,7 +20,7 @@ The default deployment base is `https://transductive.github.io/presence/`;
 override it with `-- "-PsiteBaseUrl=https://example.com/docs/"`. Building does not
 publish. The artifact can be served by any static host; no Node or application
 server is needed. The Pages workflow builds and verifies it before deployment;
-the separate library CI builds and runs unit tests on Windows, macOS, and Linux.
+the separate library CI builds both modules and runs unit tests on Windows, macOS, and Linux.
 
 ## Publish with GitHub Pages
 
@@ -76,7 +76,8 @@ in. The editable examples live in `static/playground/Playground.java` and
 `static/playground/ScalablePlayground.java`; both declare `class Playground`
 because each is compiled separately. `site:check` compiles and runs both shipped
 examples against the built JAR, alongside the bridge's unit tests. The normal library `build`/CI still
-runs only core tests, with no benchmarks or browser runtime downloads.
+runs core and Flink adapter unit tests, with no benchmarks or browser runtime downloads.
+A separate CI job verifies the Flink integration in a local runtime.
 
 The Java preview server (`../tools/SiteServer.java`) adds JAR byte-range support
 to the JDK static-file handler. GitHub Pages supports these requests too. Test

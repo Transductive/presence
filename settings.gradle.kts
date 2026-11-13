@@ -6,3 +6,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+include("presence", "presence-flink")

@@ -38,8 +38,9 @@ optional for everyday library development and workflow linting.
 Unlike `--list`, act's `--dryrun` also needs a Docker connection.
 
 The local runner lints first, then runs the Ubuntu matrix entry of the build
-workflow against your working tree, compiling and packaging the library and
-running its unit tests. Benchmark compilation, fixture tests, and timed runs
+workflow against your working tree, compiling and packaging both libraries and
+running their unit tests. The separate Flink compatibility job can be exercised
+with `mise run flink:integration`. Benchmark compilation, fixture tests, and timed runs
 are excluded from regular builds and CI; `mise run benchmark:check` runs the
 fixture checks manually. Website verification runs in the separate Pages workflow.
 Its Ubuntu 26.04 amd64 image uses emulation on Apple Silicon. GitHub still checks
@@ -70,7 +71,15 @@ For another deployment address, pass `-PsiteBaseUrl=https://example.com/presence
 
 ## What Belongs in Core
 
-Production code stays in `src/main/java` and uses the Java core library. Benchmarks have their own source set and dependencies. Website tools do not affect the library dependency graph.
+Core production code stays in `presence/src/main/java` and uses the Java core library. Benchmarks have their own source set and dependencies. Website tools do not affect the library dependency graph.
+
+The optional `presence-flink/` module owns Flink dependencies and keyed Java
+DataStream operators. Both modules share the root wrapper and mise setup.
+`mise run build` and `mise run test` target core; `mise run build:all` builds both.
+Use `mise run flink:test` for adapter unit tests and `mise run flink:integration`
+for a local parallel Flink job. See the
+[Flink module guide](https://github.com/Transductive/presence/blob/main/presence-flink/README.md)
+for membership scopes and heap/checkpoint semantics.
 
 Start a contribution with a concrete use case and a reproducible test. Changes to hashing need reference vectors and membership correctness checks; performance claims need measurements and their parameters.
 

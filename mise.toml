@@ -11,18 +11,18 @@ run = "mise tasks ls"
 
 [tasks.build]
 description = "Compile, test, and package the library, sources, and Javadoc"
-run = "sh ./gradlew build"
-run_windows = "cmd /d /c gradlew.bat build"
+run = "sh ./gradlew :presence:build"
+run_windows = "cmd /d /c gradlew.bat :presence:build"
 
 [tasks.test]
 description = "Run unit tests (forward filters with -- --tests ...)"
-run = "sh ./gradlew test"
-run_windows = "cmd /d /c gradlew.bat test"
+run = "sh ./gradlew :presence:test"
+run_windows = "cmd /d /c gradlew.bat :presence:test"
 
 [tasks.check]
 description = "Run Gradle verification tasks"
-run = "sh ./gradlew check"
-run_windows = "cmd /d /c gradlew.bat check"
+run = "sh ./gradlew :presence:check"
+run_windows = "cmd /d /c gradlew.bat :presence:check"
 
 [tasks.clean]
 description = "Remove generated build outputs through Gradle"
@@ -30,9 +30,9 @@ run = "sh ./gradlew clean"
 run_windows = "cmd /d /c gradlew.bat clean"
 
 [tasks.docs]
-description = "Generate API documentation in build/docs/javadoc"
-run = "sh ./gradlew javadoc"
-run_windows = "cmd /d /c gradlew.bat javadoc"
+description = "Generate API documentation in presence/build/docs/javadoc"
+run = "sh ./gradlew :presence:javadoc"
+run_windows = "cmd /d /c gradlew.bat :presence:javadoc"
 
 [tasks."publish:local"]
 description = "Build, test, and publish the snapshot to local Maven"
@@ -40,7 +40,7 @@ run = "sh ./gradlew build publishToMavenLocal"
 run_windows = "cmd /d /c gradlew.bat build publishToMavenLocal"
 
 [tasks.ci]
-description = "Clean, package the library, and run unit tests (no benchmark tasks)"
+description = "Clean, package both libraries, and run unit tests (no benchmark tasks)"
 # One Gradle invocation keeps clean and build ordered.
 run = "sh ./gradlew --no-daemon clean build"
 run_windows = "cmd /d /c gradlew.bat --no-daemon clean build"
@@ -159,3 +159,23 @@ run_windows = "cmd /d /c gradlew.bat siteCheck"
 description = "Build and preview the full website at http://127.0.0.1:8787"
 run = "sh ./gradlew siteServe"
 run_windows = "cmd /d /c gradlew.bat siteServe"
+
+[tasks."build:all"]
+description = "Build and unit-test both library modules"
+run = "sh ./gradlew build"
+run_windows = "cmd /d /c gradlew.bat build"
+
+[tasks."flink:build"]
+description = "Build the Flink integration and run its unit tests"
+run = "sh ./gradlew :presence-flink:build"
+run_windows = "cmd /d /c gradlew.bat :presence-flink:build"
+
+[tasks."flink:test"]
+description = "Run Flink adapter unit tests (optional -PflinkVersion=2.x.y)"
+run = "sh ./gradlew :presence-flink:test"
+run_windows = "cmd /d /c gradlew.bat :presence-flink:test"
+
+[tasks."flink:integration"]
+description = "Run a local Flink job to verify routing and membership decisions"
+run = "sh ./gradlew :presence-flink:integrationTest"
+run_windows = "cmd /d /c gradlew.bat :presence-flink:integrationTest"
