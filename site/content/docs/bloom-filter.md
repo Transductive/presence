@@ -6,6 +6,8 @@ weight = 2
 
 A Bloom filter represents membership with an array of bits. It retains neither your keys nor a list of exact entries.
 
+This guide describes fixed-size `BloomFilter`. For unknown capacity, see [Scalable Bloom](@/docs/scalable-bloom-filter.md), which adds layers with a shared false-positive budget.
+
 ## Insert and query
 
 Insertion sets `k` positions in an `m`-bit array. A lookup checks the positions for the same encoded value:

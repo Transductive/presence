@@ -1,7 +1,7 @@
 +++
 title = "Develop & contribute"
 description = "One tool setup across Windows, macOS, and Linux."
-weight = 5
+weight = 6
 +++
 
 Mise owns the developer commands and tool versions. Gradle owns compilation, tests, packaging, and reproducible build outputs.
@@ -57,7 +57,7 @@ Optional root `.secrets`, `.env`, and `.vars` files stay out of Git.
 mise run site:serve
 ```
 
-Open **http://127.0.0.1:8787/**. This builds the guides, API reference, and bundled paper, then serves the assembled site. Stop with Ctrl+C. After editing, restart the command to rebuild; this preview does not live-reload.
+Open **http://127.0.0.1:8787/**. This builds the guides, API reference, playground, and bundled papers, then serves the assembled site. Stop with Ctrl+C. After editing, restart the command to rebuild; this preview does not live-reload.
 
 ```sh
 mise run site:build
@@ -76,6 +76,6 @@ Start a contribution with a concrete use case and a reproducible test. Changes t
 
 ## Roadmap
 
-The fixed-capacity Bloom filter is available today. Counting filters, scalable filters, and serialization are proposed directions. The blocked layout is an experiment. These are not promises of released functionality.
+Fixed-size and scalable Bloom filters are available in the source snapshot. Counting filters and serialization are proposed directions. The blocked layout remains a benchmark-only experiment. Proposed features are not promises of released functionality.
 
 [Explore the repository](https://github.com/Transductive/presence) or [open an issue](https://github.com/Transductive/presence/issues).

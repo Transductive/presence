@@ -3,6 +3,9 @@
 Presence's first membership structure is an insert-only, fixed-capacity Bloom
 filter. Its public API is `io.transductive.presence.bloom.BloomFilter<T>`.
 
+For growing sets, see the separate [Scalable Bloom filter](scalable-bloom-filter.md).
+`BloomFilter` retains the API and bit layout described here.
+
 ## Algorithm
 
 The implementation follows sections 2–4 of Justin Wyss-Gallifent's

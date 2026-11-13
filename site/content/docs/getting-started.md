@@ -53,6 +53,20 @@ The constructor plans for 10,000 distinct values at an approximate 1% false-posi
 
 Inserted values remain discoverable with consistent encoding and properly synchronized access. More inserts than planned increase the false-positive rate. Individual removal is not supported.
 
+## Let an unknown set grow
+
+Choose scalable Bloom when an initial estimate is easier to provide than a final size:
+
+```java
+import io.transductive.presence.bloom.ScalableBloomFilter;
+
+var growing = ScalableBloomFilter.forStrings(1_000, 0.01);
+growing.put("alice");
+growing.mightContain("alice"); // true, including after later growth
+```
+
+It adds larger layers as bits fill, using a shared probability budget. Memory grows, and a definite miss checks every layer. Read [the growth guide](@/docs/scalable-bloom-filter.md) or [run the example in your browser]({{ get_url(path="playground/") }}?example=scalable).
+
 ## Use it before expensive work
 
 An illustrative lookup flow:

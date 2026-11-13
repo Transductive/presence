@@ -9,8 +9,17 @@
     <a class="text-link" href="{{ get_url(path='/') }}">← Presence</a>
     <p class="eyebrow">PLAYGROUND / JAVA 21</p>
     <h1>Make your first lookup.</h1>
-    <p>Edit the example. Run the library. See the answer.</p>
+    <p>Choose a filter. Edit the Java. See the answer.</p>
 </header>
+<div class="playground-example">
+    <label for="playground-example">Example</label>
+    <select id="playground-example" aria-describedby="playground-example-help" disabled>
+        <option value="fixed">Fixed-size Bloom / first lookup</option>
+        <option value="scalable">Scalable Bloom / watch it grow</option>
+    </select>
+    <p id="playground-example-help">Plan for a known capacity, then ask a membership question.</p>
+</div>
+<template id="playground-scalable-source">{{ load_data(path="static/playground/ScalablePlayground.java", format="plain") }}</template>
 <div class="playground-toolbar" aria-label="Playground controls">
     <div class="playground-actions">
         <button type="button" id="playground-run" disabled>Run <span aria-hidden="true">↗</span></button>
@@ -32,7 +41,7 @@
 <div class="playground-details">
     <p id="playground-help">Use <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to run. Print results with <code>System.out.println</code>. Each run starts fresh.</p>
     <p>Runs locally in your browser. The first run downloads Java from CheerpJ; your code is not sent to a compiler server. Small examples work best. Execution stops after 10 seconds; output is limited to 32 KiB.</p>
-    <p>A Bloom filter’s <code>false</code> means definitely absent. <code>true</code> means possibly present—verify against your source of truth.</p>
+    <p>Both filters return <code>false</code> for definitely absent and <code>true</code> for possibly present—verify positives against your source of truth. Scalable Bloom retains earlier layers as it grows; a definite miss checks every layer. <a href="{{ get_url(path='@/docs/scalable-bloom-filter.md') }}">Read the growth guide →</a></p>
     <p><a href="{{ get_url(path='api/index.html') }}">API reference ↗</a> <span aria-hidden="true">/</span> <a href="https://cheerpj.com/">Built with CheerpJ</a> <span aria-hidden="true">/</span> <span id="playground-version">Presence · Java 21</span></p>
 </div>
 <noscript><p>This playground needs JavaScript. You can still <a href="{{ get_url(path='@/docs/getting-started.md') }}">run Presence locally</a>.</p></noscript>

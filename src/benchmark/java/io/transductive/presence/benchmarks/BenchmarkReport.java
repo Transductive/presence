@@ -42,6 +42,8 @@ final class BenchmarkReport {
                 ? "Smoke run — harness validation only. These short measurements are not performance evidence."
                 : settings.profile()
                 ? "Profile run — JFR adds overhead. Use an unprofiled benchmark run for timing comparisons."
+                : settings.mode().equals("scalable")
+                ? "Focused run — 2 forks, 3 × 500 ms warmups, 5 × 500 ms measurements. Preliminary local comparison; inspect uncertainty."
                 : "Full run — compare matching workloads and N. Lower time and allocation are better.";
         String environment = "Java " + Runtime.version() + " · " + System.getProperty("os.name")
                 + " / " + System.getProperty("os.arch") + " · "
@@ -121,10 +123,12 @@ final class BenchmarkReport {
             }
             links.append("</ul></section>");
         }
+        var scalableRows = ScalableBenchmarkEvidence.write(directory, results);
         ReportTemplate.write(directory.resolve("index.html"), "benchmark.peb", Map.of(
                 "MODE", settings.mode(), "WARNING", warning, "ENVIRONMENT", environment,
                 "ALLOCATION_AUDIT", allocationAudit(directory), "SCALING", scaling(groups),
-                "PROFILES", links.toString(), "RESULTS", sections.toString()));
+                "PROFILES", links.toString(), "RESULTS", sections.toString(), "SCALABLE_ROWS", scalableRows,
+                "SCALABLE", !scalableRows.isEmpty()));
     }
 
     private static String scaling(Map<Workload, List<RunResult>> groups) {
@@ -211,8 +215,12 @@ final class BenchmarkReport {
                 : number(100 * top.getScore() / bottom.getScore()) + "%";
     }
 
-    private static String label(String method) {
+    static String label(String method) {
         return switch (method) {
+            case "fixedMurmur" -> "Fixed Bloom · Murmur3";
+            case "fixedRapidhash" -> "Fixed Bloom · rapidhash v3";
+            case "scalableMurmur" -> "Scalable Bloom · Murmur3";
+            case "scalableRapidhash" -> "Scalable Bloom · rapidhash v3";
             case "bloom" -> "Presence Bloom · Murmur3";
             case "bloomRapidhash" -> "Presence Bloom · rapidhash v3";
             case "bloomRapidhashNano" -> "Presence Bloom · rapidhash Nano v3";

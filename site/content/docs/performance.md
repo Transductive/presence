@@ -1,7 +1,7 @@
 +++
 title = "Meet the machine"
 description = "Measure lookup cost, allocation, retained memory, and false positives together."
-weight = 4
+weight = 5
 +++
 
 A Bloom filter trades exact answers for compact membership storage. Whether it saves time depends on the work it can avoid. Compare complete workloads, including verification of possible positives.
@@ -26,8 +26,25 @@ Generated reports belong to the person running the experiment. They are ignored 
 | How much is allocated per lookup? | `mise run benchmark:allocation` |
 | How much memory stays reachable? | `mise run benchmark:heap` |
 | Where does execution time go? | `mise run benchmark:flamegraph` |
+| What does automatic growth cost? | `mise run benchmark:scalable` |
 
 **Allocated bytes per operation and retained heap are different measurements.** A prebuilt collection can allocate nothing during a query while retaining a large set of keys and nodes. The report's heap measurements account for storage separately.
+
+## Fixed versus scalable
+
+```sh
+mise run benchmark:scalable
+```
+
+This short comparison covers **1,000 / 10,000 / 100,000** keys, Murmur3 and rapidhash, and all-hit/all-miss lookups. Fixed Bloom is sized for each final N; scalable starts at 1,000 and uses its default growth settings. Both request a **1% whole-filter target**. Their observed false-positive rates and storage are **not matched**, so this measures the default capacity models rather than equal-accuracy layouts.
+
+Each case uses two JVM forks, three 500 ms warmup iterations, and five 500 ms measurements per fork. Existing ASCII strings come from a broad shuffled query pool; the pool repeats and does not promise cold CPU caches. Neither Bloom uses Java's cached `String.hashCode`. Hits span the inserted set, including older layers. Construction, growth, and query allocation are outside the lookup timer.
+
+The offline report shows the sizes that actually ran, with timing confidence intervals and GC allocation metrics. An untimed pass checks every inserted value and probes 262,144 disjoint absent queries for observed false positives with 95% Wilson intervals. It also reports layer counts and bit-array payload bytes; those bytes exclude object headers, counters, and hashing workspace.
+
+A definite miss visits every layer; a hit can stop early. Scalable Bloom makes room for an unknown set size, with additional storage and lookup work. Treat short-run timings as preliminary and inspect their uncertainty. The [benchmarking reference](https://github.com/Transductive/presence/blob/main/docs/benchmarking.md) includes a longer confirmation command.
+
+The [browser growth example]({{ get_url(path="playground/") }}?example=scalable) demonstrates membership and allocation behavior. Browser Java timings are not evidence for native JVM performance.
 
 ## Fresh versus reused queries
 

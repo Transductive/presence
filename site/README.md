@@ -50,10 +50,14 @@ Generated HTML is an Actions artifact and remains outside Git.
 ## Browser playground
 
 The homepage's **Open playground** link opens `/playground/`. Edit the Java 21
-example and select **Run**, or press Ctrl/Command+Enter. A fresh Web Worker loads
+example and select **Run**, or press Ctrl/Command+Enter. Choose **Fixed-size Bloom**
+for a first lookup or **Scalable Bloom** to start at 1,000, insert 5,000 values,
+and check that every inserted value survives growth. `?example=scalable` links
+directly to the growth example. Switching examples preserves edits in memory for
+the current page; Reset restores only the selected example. A fresh Web Worker loads
 CheerpJ 5.0, compiles `Playground.java`, and runs it against the actual Presence
 JAR built with this site. **Stop** terminates the worker; **Reset example** stops
-it and restores the example. Source and compiled classes stay in memory. There
+it and restores the selected example. Source and compiled classes stay in memory. There
 is no compiler backend, account, or automatic source persistence.
 
 The page fetches CheerpJ only after Run. Its first startup requires a network
@@ -68,7 +72,10 @@ limits still apply; Web Workers do not provide a configurable heap quota.
 separate from the library JAR and dependency graph. `sitePlaygroundAssets`
 assembles both JARs with content-hashed filenames and a generated manifest;
 `siteBuild` includes them under `playground/lib/`. Nothing generated is checked
-in. `site:check` runs the bridge's unit tests; the normal library `build`/CI still
+in. The editable examples live in `static/playground/Playground.java` and
+`static/playground/ScalablePlayground.java`; both declare `class Playground`
+because each is compiled separately. `site:check` compiles and runs both shipped
+examples against the built JAR, alongside the bridge's unit tests. The normal library `build`/CI still
 runs only core tests, with no benchmarks or browser runtime downloads.
 
 The Java preview server (`../tools/SiteServer.java`) adds JAR byte-range support
@@ -104,7 +111,7 @@ experimental WasmGC engine is not enabled.
 - Java source comments: generated API reference; do not hand-edit generated HTML.
 - `javadoc/`: API presentation overrides; assembly removes Javadoc's unused
   DejaVu font import because the site supplies its own local fonts.
-- `../resources/bloomfilters.pdf`: the bundled theory reference.
+- `../resources/bloomfilters.pdf` and `../resources/scalable-bloom-filters.pdf`: the bundled theory references, excluded from the library JAR and MIT license.
 
 The sizing calculator uses the classical approximation. It does not execute the
 Java implementation or claim a measured heap footprint. Benchmark HTML and local

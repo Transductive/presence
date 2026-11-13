@@ -6,9 +6,9 @@ Presence is an open-source library by **[Transductive](https://github.com/Transd
 for answering a common question: *have we seen this value before?*
 
 Use it to rule out missing values before reaching for a database, a remote
-service, or another expensive lookup. Presence starts with a Bloom filter:
-compact storage, definite negatives, and possible positives you can verify
-against your source of truth.
+service, or another expensive lookup. Presence offers fixed-size and scalable
+Bloom filters: compact storage, definite negatives, and possible positives you
+can verify against your source of truth.
 
 **Java 21 · Zero runtime dependencies · MIT licensed**
 
@@ -30,6 +30,22 @@ Start with UTF-8 strings, or bring your own byte encoder for IDs and domain
 objects. Size a filter from your expected workload, or specify its bit count
 and number of hashes directly.
 
+If the set will grow beyond an initial estimate, use a scalable filter:
+
+```java
+import io.transductive.presence.bloom.ScalableBloomFilter;
+
+// Start around 1,000 distinct values; target 1% across all growth layers.
+var growing = ScalableBloomFilter.forStrings(1_000, 0.01);
+growing.put("alice");
+growing.mightContain("alice"); // true, including after later growth
+```
+
+It adds larger layers as bits fill, preserving earlier membership. Memory grows
+with the set, and a definite miss checks every layer. Repeated inserts do not
+consume new capacity. See [Scalable Bloom](docs/scalable-bloom-filter.md) for
+growth settings, probability budgeting, and operational limits.
+
 ## Features & roadmap
 
 | Feature | Status |
@@ -40,15 +56,15 @@ and number of hashes directly.
 | Reusable lookup workspace for strings and pre-encoded bytes | Available |
 | Murmur3, rapidhash v3 / Nano, Komihash, and SHA-256 strategies | Available |
 | Counting Bloom filter | Proposed |
-| Scalable Bloom filter | Proposed |
+| Scalable Bloom filter with a shared false-positive budget | Available |
 | Filter serialization and restoration | Proposed |
 | JMH lookup/construction timing, allocation, and HTML flamegraphs | Available |
 | Hot/broad absent-query benchmarks and exact downstream verification | Available |
 | Reachable heap and incremental memory comparisons | Available |
 
-The current Bloom filter has a fixed capacity and accepts new inserts throughout
-its lifetime. Proposed features are directions for future releases; feedback and
-contributions will help shape the roadmap.
+`BloomFilter` keeps its original fixed size; `ScalableBloomFilter` grows by adding
+layers. Both are insert-only. Proposed features are directions for future
+releases; feedback and contributions will help shape the roadmap.
 
 ## Get started
 
@@ -131,7 +147,7 @@ and malformed surrogate replacement. It avoids a fresh encoded array on each
 lookup. Custom encoders control their own allocation; use `Function.identity()`
 when your inputs are already `byte[]`.
 
-## Bloom filter behavior
+## Fixed-size Bloom filter behavior
 
 - **A negative answer is definite.** A positive answer may be a false positive.
 - **Capacity is planned up front.** Adding more values increases the
@@ -177,7 +193,9 @@ Use `mise run site:build` for the static artifact in `build/site/` and
 Generated pages remain ignored; editable site and theme templates are tracked.
 
 The homepage's **Open playground** link lets you edit and run Java 21 examples
-against the actual Presence JAR in your browser. CheerpJ loads on the first Run;
+against the actual Presence JAR in your browser. Choose a fixed-size first lookup
+or a scalable example that grows from 1,000 to 5,000 values and checks earlier
+membership. CheerpJ loads on the first Run;
 there is no compiler server or account. Stop and Reset keep experimentation
 small and disposable. The website guide covers runtime licensing and limits.
 
@@ -204,6 +222,7 @@ Start with `mise tasks ls` (or `mise run`) to list the available commands:
 | `mise run benchmark` | Compare Bloom, HashSet, and HashMap with JMH. |
 | `mise run benchmark:check` | Manually compile the benchmark harness and verify its fixtures. |
 | `mise run benchmark:smoke` | Quickly verify the benchmark harness at N=1,000. |
+| `mise run benchmark:scalable` | Compare fixed-size vs. growing Bloom, with timing, layer counts, and accuracy. |
 | `mise run benchmark:flamegraph` | Record JFR profiles and generate HTML flamegraphs. |
 | `mise run benchmark:allocation` | Audit lookup allocation, then compare five string input kinds at N=1,000. |
 | `mise run benchmark:misses` | Compare absent lookups with hot and broad query pools across all five sizes. |
@@ -315,6 +334,10 @@ Wyss-Gallifent's *CMSC 420: Bloom Filters* (University of Maryland, 2023).
 [Original source](https://www.math.umd.edu/~immortal/CMSC420/notes/bloomfilters.pdf) ·
 [Reference metadata](resources/README.md)
 
+The scalable filter follows Almeida, Baquero, Preguiça, and Hutchison's
+*Scalable Bloom Filters* (2007): [bundled paper](resources/scalable-bloom-filters.pdf)
+and [implementation notes](docs/scalable-bloom-filter.md).
+
 ## Contributing
 
 Bug reports, API feedback, and contributions are welcome. Have a workload that
@@ -328,5 +351,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow.
 [MIT](LICENSE) © 2026 Transductive contributors.
 Hash algorithm attributions and upstream licenses are in [NOTICE](NOTICE) and
 [licenses/](licenses/), and are included in the published JARs.
-The bundled reference PDF retains its author's rights and is excluded from the
+The bundled reference PDFs retain their authors' rights and are excluded from the
 project's MIT license.

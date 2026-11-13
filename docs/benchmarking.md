@@ -21,6 +21,7 @@ mise run benchmark:allocation
 mise run benchmark:misses
 mise run benchmark:prefilter
 mise run benchmark:heap
+mise run benchmark:scalable
 ```
 
 | Command | Workload | Harness settings |
@@ -32,6 +33,27 @@ mise run benchmark:heap
 | `benchmark:misses` | rapidhash v3, HashSet, HashMap; all five N; 0% hits; HOT and BROAD query pools | 30 cases, 2 forks, 3 × 1-second warmups, 5 × 1-second measurements |
 | `benchmark:prefilter` | Direct exact lookup vs. Bloom then exact; all five N; 0% / 50% hits; downstream CPU tokens=0 / 256 | 40 cases, same full timing settings |
 | `benchmark:heap` | Bloom, HashSet, HashMap, and Bloom + HashMap; all five N | Separate JOL object-graph measurement; 2 GiB maximum analysis heap; no timing claims |
+| `benchmark:scalable` | Fixed-size vs. scalable Bloom; Murmur3 and rapidhash; N=1,000 / 10,000 / 100,000; 0% / 100% hits; BROAD queries | 2 forks, 3 × 500 ms warmups, 5 × 500 ms measurements; preliminary local comparison |
+
+The focused scalable comparison takes roughly four minutes plus setup. Fixed
+Bloom is sized for the final N; scalable starts at 1,000 for every case and uses
+its default growth factor 2 and tightening ratio 0.9. Both have a 1% whole-filter
+target. Observed false-positive rates and memory are **not calibrated to match**:
+scalable's tighter layers and spare capacity may make it more selective. The
+report includes layer counts, bit-array payload bytes, and a separate untimed
+accuracy check over 262,144 absent queries with 95% Wilson intervals. Payload
+is not total retained heap; it excludes object headers, counters, and workspace.
+Each evidence case also verifies every inserted key. These lookup timings exclude
+construction and growth; hits are sampled across the whole set, including older
+layers. Existing strings are reused by default; neither filter uses cached Java
+string hashes. Raw evidence is in `scalable-evidence.csv` beside JMH JSON.
+
+Override N/hits/inputs/working sets with the existing benchmark properties. For
+longer confirmation, use the regular full harness with the same fixtures:
+
+```sh
+mise run benchmark -- '-PbenchmarkInclude=.*ScalableMembershipBenchmark.*' '-PbenchmarkSizes=1000,10000,100000' '-PbenchmarkHits=0,100' -PbenchmarkWorkingSets=BROAD
+```
 
 These standard timed runs use a single benchmark thread, Java 21, a 256 MiB initial fork
 heap, a 512 MiB maximum by default, and JMH's GC profiler. The full suite has 120 benchmark cases

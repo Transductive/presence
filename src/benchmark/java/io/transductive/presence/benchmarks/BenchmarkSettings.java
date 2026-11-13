@@ -16,7 +16,7 @@ record BenchmarkSettings(String mode, List<String> sizes, List<String> hits, Str
 
     static BenchmarkSettings parse(String mode, String sizes, String hits, String include, String inputs,
             String workingSets, String queryModes, String downstreamTokens, String strategies) {
-        if (!List.of("full", "smoke", "profile", "allocation", "misses", "prefilter").contains(mode)) {
+        if (!List.of("full", "smoke", "profile", "allocation", "misses", "prefilter", "scalable").contains(mode)) {
             throw new IllegalArgumentException("Unknown benchmark mode: " + mode);
         }
         var sortedSizes = new TreeSet<Integer>();

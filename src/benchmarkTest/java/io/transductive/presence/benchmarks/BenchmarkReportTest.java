@@ -1,6 +1,7 @@
 package io.transductive.presence.benchmarks;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -25,6 +26,27 @@ import org.openjdk.jmh.runner.options.TimeValue;
 class BenchmarkReportTest {
     @TempDir
     Path directory;
+
+    @Test
+    void scalableReportIncludesOnlyMeasuredCasesAndLabelsPayloadSeparately() throws Exception {
+        var settings = BenchmarkSettings.parse("scalable", "1000,10000", "0,100", ".*");
+        BenchmarkReport.write(directory, settings, List.of(
+                result("ScalableMembershipBenchmark", "fixedRapidhash", 1_000, 0, 30, "ASCII", "BROAD", "CACHED", 0),
+                result("ScalableMembershipBenchmark", "scalableRapidhash", 1_000, 0, 40, "ASCII", "BROAD", "CACHED", 0)), List.of());
+        String html = Files.readString(directory.resolve("index.html"));
+        assertTrue(html.contains("Focused run"));
+        assertTrue(html.contains("Fixed Bloom · rapidhash v3"));
+        assertTrue(html.contains("Scalable Bloom · rapidhash v3"));
+        assertTrue(html.contains("Payload bytes"));
+        assertTrue(html.contains("Measured false-positive rates and memory are not matched"));
+        assertFalse(html.contains("N=10,000"));
+        assertFalse(html.contains("Scalable Bloom · Murmur3"));
+        assertFalse(html.contains("{{"));
+        var csv = Files.readAllLines(directory.resolve("scalable-evidence.csv"));
+        assertEquals(3, csv.size());
+        assertTrue(csv.get(1).startsWith("1000,ASCII,fixedRapidhash,1,"));
+        assertTrue(csv.get(2).startsWith("1000,ASCII,scalableRapidhash,1,"));
+    }
 
     @Test
     void singleSizeReportUsesActualResultsEvenWhenSettingsListMoreSizes() throws Exception {
