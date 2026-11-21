@@ -1,0 +1,9 @@
+<figure class="architecture-diagram">
+    <a class="architecture-diagram-preview" href="{{ get_url(path='images/flink-memory-state.png') }}" aria-label="Open the full-size Flink memory and state architecture diagram">
+        <img src="{{ get_url(path='images/flink-memory-state.png') }}" width="2400" height="1680" loading="lazy" decoding="async" alt="One Flink subtask holds a scalable Bloom per stream key in heap. Queries probe newest to oldest; absent IDs enter the active layer. Dirty layers and event counters flush into keyed MapState and ValueState before a checkpoint. Recovery restores managed state, then hydrates each key's heap Bloom on first use.">
+    </a>
+    <figcaption>
+        Heap serves membership; managed state keeps the recovery copy.
+        <a href="{{ get_url(path='images/flink-memory-state.png') }}">Open Full-Size Diagram</a>
+    </figcaption>
+</figure>

@@ -116,6 +116,12 @@ Page titles, headings, cards, and example names use title case. Follow the
 - `content/`: authored Markdown guides and the homepage code example.
 - `templates/`: homepage and small DevLab overrides. These HTML files are source.
 - `static/`: local styles, fonts, favicon, sizing calculator, and playground UI.
+- `static/images/flink-memory-state.png`: checked-in architecture illustration.
+  Update this 2400 × 1680 PNG when the memory/state architecture changes. The Flink
+  guide embeds it through `templates/partials/architecture-diagram.html` and
+  includes a text walkthrough and a full-size link. Serving the image needs no
+  external account or runtime connection; it is an authored documentation asset,
+  separate from ignored generated reports.
 - `playground/`: website-only Java compiler bridge and its unit tests.
 - `themes/devlab-theme/`: unmodified vendored runtime, MIT licensed.
 - Java source comments: generated API reference; do not hand-edit generated HTML.

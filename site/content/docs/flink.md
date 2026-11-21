@@ -146,6 +146,30 @@ serialized layer. A small `ValueState<byte[]>` manifest records configuration,
 layer count, and the per-key event counter. Fixed filters use one layer. The
 application still chooses Flink's state backend and checkpoint storage.
 
+### From Memory to Recovery
+
+{% include "partials/architecture-diagram.html" %}
+
+Read the diagram from left to right for an event, and from top to bottom for a
+checkpoint:
+
+1. **Route by key.** Each tenant has its own heap Bloom inside the subtask.
+2. **Probe the layers.** Start with the newest layer and stop on any possible
+   match. Only when every layer says no does the operator remember the ID in
+   the active layer. When that layer fills, a larger one becomes active.
+3. **Track changes.** Inserts mark the affected layer dirty. Every observed event
+   also changes the key's reset counter, including possible duplicates.
+4. **Snapshot dirty state.** Before Flink snapshots its backend, flush changed
+   layers and manifests for all dirty keys. The completed checkpoint is the
+   recovery boundary.
+5. **Restore on demand.** Flink restores the keyed state; the first event for a
+   key hydrates its heap Bloom. Subsequent lookups stay on heap.
+
+The drawing shows scalable storage with doubling growth. A fixed Bloom uses
+the same recovery path with a single layer. The membership flag is included
+downstream only with `applyToWithMembership`; `applyTo` forwards the original
+record alone, and a `DROP` decision emits nothing.
+
 Mutations mark layers dirty, coalescing many inserts into one pending write.
 Before each checkpoint snapshot, the operator flushes changed layers for every
 dirty key on the operator thread. Duplicate-only traffic writes the counter

@@ -131,6 +131,30 @@ a:focus-visible,button:focus-visible,select:focus-visible {
     font-size: .88em;
 }
 
+.architecture-diagram {
+    margin: 2rem 0;
+}
+
+.architecture-diagram-preview {
+    display: block;
+    border: 1px solid var(--color-border);
+    background: #fff;
+}
+
+.architecture-diagram-preview img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0;
+}
+
+.architecture-diagram figcaption {
+    margin-top: .75rem;
+    font-size: .875rem;
+    line-height: 1.7;
+    color: var(--quiet);
+}
+
 .presence-home {
     max-width: 78rem;
     margin-inline: auto;

@@ -5,7 +5,8 @@ Uses the established DataStream API. Java 21 is required by Presence; configure
 the Flink runtime to use Java 21 too. The separate experimental DataStream API V2,
 Table/SQL, and Python APIs are outside this module.
 
-Read the [Flink field guide](https://transductive.github.io/presence/docs/flink/)
+Read the [Flink field guide](https://transductive.github.io/presence/docs/flink/),
+[memory and recovery architecture](https://transductive.github.io/presence/docs/flink/#from-memory-to-recovery),
 and [API reference](https://transductive.github.io/presence/api/flink/index.html).
 Flink examples run in a JVM; the website's browser playground is for core filters
 and does not load Flink dependencies.
