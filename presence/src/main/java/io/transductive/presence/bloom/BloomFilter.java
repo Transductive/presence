@@ -28,6 +28,7 @@ import java.util.function.Function;
  */
 public final class BloomFilter<T> {
     private static final double LN_2 = Math.log(2.0);
+    private static final int SNAPSHOT_MAGIC = 0x50524246;
 
     private final int bitSize;
     private final long bitSizeReciprocal;
@@ -295,6 +296,63 @@ public final class BloomFilter<T> {
      */
     public HashingStrategy hashingStrategy() {
         return hashingStrategy;
+    }
+
+    /**
+     * Copies the dimensions, hashing/encoding mode, and bits into a versioned snapshot.
+     * The returned bytes are independent of this filter and include an integrity checksum.
+     * Encoders and input values are never serialized. Cost is proportional to bit size.
+     * @return a newly allocated snapshot
+     */
+    public byte[] snapshot() {
+        int count = (int) (((long) bitSize + 63) / 64);
+        var buffer = BloomSnapshotIO.allocate(SNAPSHOT_MAGIC, 20 + count * Long.BYTES);
+        buffer.putInt(BloomSnapshotIO.strategyId(hashingStrategy)).putInt(utf8Strings ? 1 : 0)
+                .putInt(bitSize).putInt(hashFunctionCount).putInt(count);
+        long[] words = bits.toLongArray();
+        for (int i = 0; i < count; i++) buffer.putLong(i < words.length ? words[i] : 0);
+        return BloomSnapshotIO.finish(buffer);
+    }
+
+    /**
+     * Restores a UTF-8 string filter, including its original hashing strategy.
+     * @param snapshot bytes produced by a string filter's {@link #snapshot()}
+     * @return an independent, mutable filter
+     * @throws IllegalArgumentException for incompatible, corrupt, or unsupported snapshots
+     */
+    public static BloomFilter<String> restoreStrings(byte[] snapshot) {
+        return restore(snapshot, null, true);
+    }
+
+    /**
+     * Restores a byte-encoded filter. The caller must supply the same encoding semantics.
+     * @param snapshot bytes produced by a byte-encoded filter's {@link #snapshot()}
+     * @param encoder deterministic encoder compatible with the original filter
+     * @param <T> value type
+     * @return an independent, mutable filter
+     * @throws IllegalArgumentException for incompatible, corrupt, or unsupported snapshots
+     */
+    public static <T> BloomFilter<T> restore(byte[] snapshot, Function<? super T, byte[]> encoder) {
+        return restore(snapshot, Objects.requireNonNull(encoder, "encoder"), false);
+    }
+
+    private static <T> BloomFilter<T> restore(byte[] snapshot, Function<? super T, byte[]> encoder,
+            boolean strings) {
+        var buffer = BloomSnapshotIO.read(snapshot, SNAPSHOT_MAGIC);
+        if (buffer.remaining() < 20) throw BloomSnapshotIO.invalid();
+        var strategy = BloomSnapshotIO.strategy(buffer.getInt());
+        if (buffer.getInt() != (strings ? 1 : 0)) throw BloomSnapshotIO.invalid();
+        int size = buffer.getInt();
+        int probes = buffer.getInt();
+        int count = buffer.getInt();
+        if (size <= 0 || probes <= 0 || count != ((long) size + 63) / 64
+                || buffer.remaining() != (long) count * Long.BYTES) throw BloomSnapshotIO.invalid();
+        var filter = new BloomFilter<T>(size, probes, encoder, strategy, strings);
+        long[] words = new long[count];
+        for (int i = 0; i < count; i++) words[i] = buffer.getLong();
+        if ((size & 63) != 0 && (words[count - 1] >>> (size & 63)) != 0) throw BloomSnapshotIO.invalid();
+        filter.bits.or(BitSet.valueOf(words));
+        return filter;
     }
 
     private long probeStep(long hash) {

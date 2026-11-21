@@ -166,9 +166,20 @@ Inputs and encoded arrays must be non-null. Empty strings and empty arrays are
 valid. The string factory uses UTF-8 without Unicode normalization. Neither the
 input values nor their byte arrays are retained.
 
+## Snapshots
+
+`snapshot()` copies all logical storage words and the dimensions, hash strategy,
+and encoding mode into a versioned byte format with a CRC32C integrity check.
+`restoreStrings(bytes)` reconstructs UTF-8 membership; `restore(bytes, encoder)`
+requires the original byte-encoding semantics. Neither input values nor encoder
+callbacks are serialized. Snapshots and restored filters do not share mutable
+bits with the original. Invalid dimensions, corrupt bytes, unsupported versions,
+and incompatible encoding modes are rejected. Capture without concurrent
+mutation; the application owns storage and atomic publication.
+
 ## Operational Limits
 
-- The filter is fixed size, with no removal, resizing, persistence, or merge
+- The filter is fixed size, with no removal, resizing, automatic persistence, or merge
   operation. It does not track an exact element count.
 - Instances are not thread-safe, including concurrent lookups. Use external
   synchronization when sharing them; lookups mutate the reusable workspace.

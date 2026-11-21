@@ -4,6 +4,8 @@ import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -19,7 +21,7 @@ import java.util.function.Function;
  * <p>A query returns true if any layer matches. Values accepted by {@link #put}
  * remain discoverable; neither keys nor encoded byte arrays are retained.
  * Growth retains all older layers and consumes additional memory. There is no
- * deletion, eviction, persistence, or fixed total memory budget.
+ * deletion, eviction, or fixed total memory budget. Layer snapshots support persistence.
  *
  * <p>Like {@link BloomFilter}, identity is defined by deterministic encoded
  * bytes. Instances are not thread-safe, including concurrent lookups, because
@@ -33,8 +35,11 @@ public final class ScalableBloomFilter<T> {
     private static final double DEFAULT_TIGHTENING = 0.9;
     private static final long LAYER_DOMAIN = 0xd1b54a32d192ed03L;
     private static final long LAYER_INCREMENT = 0x9e3779b97f4a7c15L;
+    private static final int METADATA_MAGIC = 0x5052534d;
+    private static final int LAYER_MAGIC = 0x5052534c;
 
     private final ArrayList<Layer> layers = new ArrayList<>();
+    private final List<Layer> layerView = Collections.unmodifiableList(layers);
     private final Function<? super T, byte[]> encoder;
     private final boolean utf8Strings;
     private final HashingStrategy strategy;
@@ -46,10 +51,18 @@ public final class ScalableBloomFilter<T> {
     private final double initialLogProbability;
     private final double logTightening;
     private final int growthFactor;
+    private final long initialCapacity;
+    private final double tighteningRatio;
 
     private ScalableBloomFilter(long initialCapacity, double probability,
             Function<? super T, byte[]> encoder, boolean utf8Strings,
             HashingStrategy strategy, int growthFactor, double tighteningRatio) {
+        this(initialCapacity, probability, encoder, utf8Strings, strategy, growthFactor, tighteningRatio, null);
+    }
+
+    private ScalableBloomFilter(long initialCapacity, double probability,
+            Function<? super T, byte[]> encoder, boolean utf8Strings,
+            HashingStrategy strategy, int growthFactor, double tighteningRatio, List<Layer> restored) {
         if (initialCapacity <= 0) throw new IllegalArgumentException("initialCapacity must be positive");
         if (!(probability > 0 && probability < 1)) {
             throw new IllegalArgumentException("falsePositiveProbability must be between 0 and 1");
@@ -68,12 +81,15 @@ public final class ScalableBloomFilter<T> {
         this.initialLogProbability = Math.log(probability) + Math.log1p(-tighteningRatio);
         this.logTightening = Math.log(tighteningRatio);
         this.growthFactor = growthFactor;
+        this.initialCapacity = initialCapacity;
+        this.tighteningRatio = tighteningRatio;
         double requiredSliceBits = Math.max(Long.SIZE, Math.ceil(initialCapacity / LN_2));
         if (requiredSliceBits > (1L << 30)) {
             throw new IllegalArgumentException("initialCapacity exceeds the supported layer size");
         }
         int sliceBits = Integer.highestOneBit((int) requiredSliceBits - 1) << 1;
-        layers.add(newLayer(0, sliceBits));
+        if (restored == null) layers.add(newLayer(0, sliceBits));
+        else layers.addAll(restored);
         this.input = new HashInput(utf8Strings);
         this.digest = strategy == HashingStrategy.SHA_256 ? newDigest() : null;
         this.digestBytes = digest == null ? null : new byte[32];
@@ -245,6 +261,80 @@ public final class ScalableBloomFilter<T> {
     public int layerCount() { return layers.size(); }
 
     /**
+     * Returns an unmodifiable, live view of layers in oldest-first index order.
+     * Layers expose inspection and independent snapshots, never writable bit arrays.
+     * The view grows with the filter; do not iterate concurrently with insertion.
+     * @return read-only layer views
+     */
+    public List<Layer> layers() { return layerView; }
+
+    /**
+     * Snapshots configuration and the current layer count, without copying any layer bits.
+     * Capture this and all referenced layer snapshots without concurrent mutations.
+     * @return versioned, checksummed metadata for {@link #restoreStrings(byte[], Iterable)}
+     */
+    public byte[] snapshotMetadata() {
+        var buffer = BloomSnapshotIO.allocate(METADATA_MAGIC, 40);
+        buffer.putInt(BloomSnapshotIO.strategyId(strategy)).putInt(utf8Strings ? 1 : 0)
+                .putLong(initialCapacity).putDouble(targetProbability).putInt(growthFactor)
+                .putDouble(tighteningRatio).putInt(layers.size());
+        return BloomSnapshotIO.finish(buffer);
+    }
+
+    /**
+     * Restores a string filter from metadata and exactly its referenced layers.
+     * Restored filters retain membership, growth settings, and hashing semantics.
+     * @param metadata bytes from {@link #snapshotMetadata()}
+     * @param snapshots layer snapshots in oldest-first index order
+     * @return an independent mutable filter
+     * @throws IllegalArgumentException for incompatible, corrupt, missing, or extra layers
+     */
+    public static ScalableBloomFilter<String> restoreStrings(byte[] metadata, Iterable<byte[]> snapshots) {
+        return restore(metadata, snapshots, null, true);
+    }
+
+    /**
+     * Restores a byte-encoded filter using the original encoding semantics supplied by the caller.
+     * @param metadata bytes from {@link #snapshotMetadata()}
+     * @param snapshots layer snapshots in oldest-first index order
+     * @param encoder deterministic encoder compatible with the original filter
+     * @param <T> value type
+     * @return an independent mutable filter
+     * @throws IllegalArgumentException for incompatible, corrupt, missing, or extra layers
+     */
+    public static <T> ScalableBloomFilter<T> restore(byte[] metadata, Iterable<byte[]> snapshots,
+            Function<? super T, byte[]> encoder) {
+        return restore(metadata, snapshots, Objects.requireNonNull(encoder, "encoder"), false);
+    }
+
+    private static <T> ScalableBloomFilter<T> restore(byte[] metadata, Iterable<byte[]> snapshots,
+            Function<? super T, byte[]> encoder, boolean strings) {
+        var buffer = BloomSnapshotIO.read(metadata, METADATA_MAGIC);
+        if (buffer.remaining() != 40) throw BloomSnapshotIO.invalid();
+        var strategy = BloomSnapshotIO.strategy(buffer.getInt());
+        if (buffer.getInt() != (strings ? 1 : 0)) throw BloomSnapshotIO.invalid();
+        long capacity = buffer.getLong();
+        double probability = buffer.getDouble();
+        int growth = buffer.getInt();
+        double tightening = buffer.getDouble();
+        int count = buffer.getInt();
+        // Validate configuration without allocating bit arrays from untrusted dimensions.
+        var filter = new ScalableBloomFilter<T>(capacity, probability, encoder, strings,
+                strategy, growth, tightening, List.of());
+        if (count <= 0) throw BloomSnapshotIO.invalid();
+        var iterator = Objects.requireNonNull(snapshots, "snapshots").iterator();
+        long sliceBits = Integer.highestOneBit((int) Math.max(64, Math.ceil(capacity / LN_2)) - 1) << 1;
+        for (int i = 0; i < count; i++) {
+            if (!iterator.hasNext()) throw BloomSnapshotIO.invalid();
+            int probes = Math.max(1, (int) Math.ceil(-(filter.initialLogProbability + i * filter.logTightening) / LN_2));
+            filter.layers.add(Layer.restore(iterator.next(), i, sliceBits, probes));
+            sliceBits *= growth;
+        }
+        if (iterator.hasNext()) throw BloomSnapshotIO.invalid();
+        return filter;
+    }
+
+    /**
      * Returns the total bit-array payload size, excluding counters and workspace.
      * @return allocated payload bits across all layers
      */
@@ -374,16 +464,17 @@ public final class ScalableBloomFilter<T> {
         return value ^ (value >>> 33);
     }
 
-    private static final class Layer {
-        final int index;
-        final int sliceBits;
-        final int probes;
-        final long salt;
-        final long[] words;
-        final int[] setBits;
-        final int[] pending;
+    /** Read-only access to one partitioned Bloom layer; mutations remain owned by its filter. */
+    public static final class Layer {
+        private final int index;
+        private final int sliceBits;
+        private final int probes;
+        private final long salt;
+        private final long[] words;
+        private final int[] setBits;
+        private final int[] pending;
 
-        Layer(int index, int sliceBits, int probes) {
+        private Layer(int index, int sliceBits, int probes) {
             this.index = index;
             this.sliceBits = sliceBits;
             this.probes = probes;
@@ -391,6 +482,51 @@ public final class ScalableBloomFilter<T> {
             this.words = new long[(sliceBits / Long.SIZE) * probes];
             this.setBits = new int[probes];
             this.pending = new int[probes];
+        }
+
+        /**
+         * Identifies this layer within its owning filter.
+         * @return stable zero-based index
+         */
+        public int index() { return index; }
+
+        /**
+         * Reports this layer's bit-array payload size.
+         * @return number of allocated bits
+         */
+        public long bitSize() { return (long) sliceBits * probes; }
+
+        /**
+         * Reports this layer's probe count.
+         * @return number of disjoint probe slices
+         */
+        public int hashFunctionCount() { return probes; }
+
+        /**
+         * Copies this layer into an independent versioned snapshot with an integrity checksum.
+         * Pair it with the owning filter's metadata; it is not a standalone fixed Bloom.
+         * @return newly allocated layer bytes
+         */
+        public byte[] snapshot() {
+            var buffer = BloomSnapshotIO.allocate(LAYER_MAGIC, 12 + words.length * Long.BYTES);
+            buffer.putInt(index).putInt(sliceBits).putInt(probes);
+            for (long word : words) buffer.putLong(word);
+            return BloomSnapshotIO.finish(buffer);
+        }
+
+        private static Layer restore(byte[] snapshot, int index, long sliceBits, int probes) {
+            var buffer = BloomSnapshotIO.read(snapshot, LAYER_MAGIC);
+            if (sliceBits < 64 || sliceBits > Integer.MAX_VALUE / probes || buffer.remaining() < 12
+                    || buffer.getInt() != index || buffer.getInt() != sliceBits || buffer.getInt() != probes
+                    || buffer.remaining() != sliceBits / 64 * probes * Long.BYTES) throw BloomSnapshotIO.invalid();
+            var layer = new Layer(index, (int) sliceBits, probes);
+            int wordsPerSlice = layer.sliceBits / 64;
+            for (int i = 0; i < layer.words.length; i++) {
+                layer.words[i] = buffer.getLong();
+                layer.setBits[i / wordsPerSlice] += Long.bitCount(layer.words[i]);
+            }
+            for (int count : layer.setBits) if (count > sliceBits / 2) throw BloomSnapshotIO.invalid();
+            return layer;
         }
     }
 }
