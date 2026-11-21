@@ -11,9 +11,12 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -82,6 +85,77 @@ class BloomDeduplicatorMiniClusterTest {
             assertEquals(expected.size(), actual.size(), "no extra records or dropped expected occurrences");
             assertEquals(expected, new HashSet<>(actual), "tenant, event ID, and payload must be preserved");
             assertEquals(Set.of(0, 1), producingTasks, "both parallel membership tasks must produce output");
+        }
+    }
+
+    @ParameterizedTest(name = "membership output: scalable={0}, possibleDuplicate={1}")
+    @CsvSource({"false, FORWARD_WITH_MEMBERSHIP", "true, FORWARD_WITH_MEMBERSHIP",
+            "false, DROP", "true, DROP", "false, FORWARD", "true, FORWARD"})
+    @Timeout(90)
+    void sendsMembershipResultsAcrossTheNetworkWithoutGenericSerialization(boolean scalable, Decision decision)
+            throws Exception {
+        try (var environment = StreamExecutionEnvironment.getExecutionEnvironment()) {
+            environment.configure(new Configuration().set(PipelineOptions.GENERIC_TYPES, false));
+            environment.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+            environment.setParallelism(2);
+            environment.getConfig().enableObjectReuse();
+            TypeInformation<Tuple3<String, String, Integer>> type = Types.TUPLE(
+                    Types.STRING, Types.STRING, Types.INT);
+            var input = new ArrayList<Tuple3<String, String, Integer>>();
+            var expected = new HashSet<MembershipResult<Tuple3<String, String, Integer>>>();
+            for (int tenant = 0; tenant < 32; tenant++) {
+                for (int id = 0; id < 3; id++) {
+                    for (int occurrence = 0; occurrence < 4; occurrence++) {
+                        var event = Tuple3.of("tenant-" + tenant, "event-" + id, occurrence);
+                        input.add(event);
+                        if (decision != Decision.DROP || occurrence == 0) {
+                            expected.add(new MembershipResult<>(event, occurrence != 0));
+                        }
+                    }
+                }
+            }
+            var keyed = environment.fromData(input, type).setParallelism(1).keyBy(event -> event.f0);
+            var builder = BloomDeduplicator.<Tuple3<String, String, Integer>>by(event -> event.f1)
+                    .onPossibleDuplicate(event -> decision);
+            if (scalable) builder.scalable(1_000);
+            else builder.fixed(1_000);
+            var output = builder.build().applyToWithMembership(keyed)
+                    .uid("mini-cluster-membership-result").setParallelism(2);
+            assertTrue(output.getType() instanceof PojoTypeInfo<?>);
+            var resultType = (PojoTypeInfo<?>) output.getType();
+            assertEquals(type, resultType.getTypeAt("value"));
+            assertEquals(Types.BOOLEAN, resultType.getTypeAt("maybePresent"));
+
+            // Keep the result nested inside the tag, then force network serialization.
+            var tagged = output.map(new TagMembershipSubtask()).setParallelism(2);
+            var shuffled = tagged.rebalance().map(event -> event).returns(tagged.getType())
+                    .setParallelism(2).disableChaining();
+            var actual = new ArrayList<MembershipResult<Tuple3<String, String, Integer>>>();
+            var producingTasks = new HashSet<Integer>();
+            try (var results = shuffled.executeAndCollect()) {
+                results.forEachRemaining(taggedResult -> {
+                    var result = taggedResult.f0;
+                    var event = result.value();
+                    actual.add(new MembershipResult<>(Tuple3.of(event.f0, event.f1, event.f2), result.maybePresent()));
+                    producingTasks.add(taggedResult.f1);
+                });
+            }
+            assertEquals(expected.size(), actual.size());
+            assertEquals(expected, new HashSet<>(actual));
+            assertEquals(Set.of(0, 1), producingTasks);
+        }
+    }
+
+    private static final class TagMembershipSubtask extends RichMapFunction<
+            MembershipResult<Tuple3<String, String, Integer>>,
+            Tuple2<MembershipResult<Tuple3<String, String, Integer>>, Integer>> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public Tuple2<MembershipResult<Tuple3<String, String, Integer>>, Integer>
+                map(MembershipResult<Tuple3<String, String, Integer>> result) {
+            return Tuple2.of(result,
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
     }
 

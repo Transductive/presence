@@ -57,6 +57,19 @@ class BloomDeduplicatorTest {
     }
 
     @Test
+    void membershipDecisionRequiresMembershipOutputRatherThanDiscardingTheFlag() throws Exception {
+        try (var harness = harness(true, 1_000, 0.01, event -> Decision.FORWARD_WITH_MEMBERSHIP)) {
+            harness.open();
+            var event = Tuple2.of("tenant", "id");
+            harness.processElement(new StreamRecord<>(event));
+            var failure = assertThrows(IllegalStateException.class,
+                    () -> harness.processElement(new StreamRecord<>(event)));
+            assertTrue(failure.getMessage().contains("applyToWithMembership"));
+            assertEquals(List.of(event), harness.extractOutputValues());
+        }
+    }
+
+    @Test
     void falsePositiveAlsoInvokesThePolicy() throws Exception {
         var seen = new ArrayList<String>();
         try (var harness = harness(false, 1, 0.99, event -> {
@@ -201,9 +214,10 @@ class BloomDeduplicatorTest {
             harness(boolean scalable, long capacity, double probability,
                     PossibleDuplicateHandler<Tuple2<String, String>> handler,
                     CheckpointAwareness awareness) throws Exception {
-        var function = new HeapBloomProcessFunction<String, Tuple2<String, String>>(event -> event.f1, handler,
+        var function = new HeapBloomProcessFunction<String, Tuple2<String, String>, Tuple2<String, String>>(
+                event -> event.f1, handler,
                 new BloomConfiguration(scalable, capacity, probability, HashingStrategy.MURMUR3_128, BloomBackend.HEAP),
-                Types.STRING, awareness);
+                Types.STRING, awareness, HeapBloomProcessFunction.records());
         return new KeyedOneInputStreamOperatorTestHarness<>(new KeyedProcessOperator<>(function),
                 event -> event.f0, Types.STRING);
     }

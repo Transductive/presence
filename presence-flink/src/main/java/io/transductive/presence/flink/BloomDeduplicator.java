@@ -21,6 +21,8 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
  * policy can discard genuinely new events due to false positives. Records are
  * never modified or retained. String identity follows the core library's UTF-8
  * encoding, including its replacement of malformed surrogates.
+ * Use {@link #applyToWithMembership} to include the membership observation in a
+ * {@link MembershipResult} alongside every forwarded record.
  *
  * <p>HEAP membership has no TTL or window lifecycle, grows with active groups,
  * and is lost on restart, restore, or rescaling. Checkpointing other operators
@@ -61,6 +63,10 @@ public final class BloomDeduplicator<T> implements Serializable {
      * Configure checkpointing before this call for the startup diagnostic. If
      * enabled later, the first actual checkpoint also triggers a warning.
      *
+     * <p>A handler returning {@link Decision#FORWARD_WITH_MEMBERSHIP} fails the
+     * task with {@link IllegalStateException}: use {@link #applyToWithMembership}
+     * to declare the membership output type when constructing the job.
+     *
      * @param stream a stream grouped by tenant, shard, or another membership scope
      * @param <K> stream group key type
      * @return the output operator, whose UID and parallelism can be configured normally
@@ -69,7 +75,40 @@ public final class BloomDeduplicator<T> implements Serializable {
         Objects.requireNonNull(stream, "stream");
         var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
         return stream.process(new HeapBloomProcessFunction<>(idSelector, handler, configuration,
-                stream.getKeyType(), checkpoints), stream.getType()).name("Presence Bloom Deduplicator");
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.records()), stream.getType())
+                .name("Presence Bloom Deduplicator");
+    }
+
+    /**
+     * Attaches duplicate handling and includes membership with every forwarded record.
+     * {@link MembershipResult#value()} contains the original record;
+     * {@link MembershipResult#maybePresent()} is the Bloom's
+     * membership result before insertion into this group. False means definitely
+     * absent from the current heap membership; true means possibly present,
+     * including false positives. It does not prove an actual duplicate.
+     *
+     * <p>Definitely-absent IDs are remembered and emitted with false, without
+     * invoking the handler. For possible duplicates, {@link Decision#DROP}
+     * suppresses output; {@link Decision#FORWARD_WITH_MEMBERSHIP} and
+     * {@link Decision#FORWARD} both emit the original record with true.
+     * Every emitted record uses the same result type, even if decisions vary.
+     * Records and event timestamps are preserved. The result wraps the incoming
+     * record without copying it; normal Flink object-reuse rules still apply.
+     *
+     * <p>Configure checkpointing before this call for the startup diagnostic.
+     * HEAP lifetime and checkpoint behavior are the same as {@link #applyTo}.
+     *
+     * @param stream a stream grouped by tenant, shard, or another membership scope
+     * @param <K> stream group key type
+     * @return the typed membership output, with configurable UID and parallelism
+     */
+    public <K> SingleOutputStreamOperator<MembershipResult<T>> applyToWithMembership(KeyedStream<T, K> stream) {
+        Objects.requireNonNull(stream, "stream");
+        var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
+        var outputType = MembershipResult.typeInformation(stream.getType());
+        return stream.process(new HeapBloomProcessFunction<>(idSelector, handler, configuration,
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.withMembership()), outputType)
+                .name("Presence Bloom Deduplicator With Membership");
     }
 
     /**

@@ -66,4 +66,3 @@ extensions.configure<PublishingExtension> {
         }
     }
 }
-

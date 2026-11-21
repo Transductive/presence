@@ -35,10 +35,11 @@ be smaller than a whole Bloom for a single identity.
 
 The operator checks membership before insertion. A definitely-absent ID is
 remembered and its original record is forwarded. A possible duplicate invokes
-the callback, which chooses `DROP` or `FORWARD`. The callback is mandatory; there
-is no implicit dropping policy. `DROP` accepts that false positives can discard
-genuinely new records. `FORWARD` also forwards actual repeats. Neither decision
-means the event has been delivered to a sink. This is not an at-most-once or
+the callback, which chooses `DROP`, `FORWARD`, or `FORWARD_WITH_MEMBERSHIP`.
+The callback is mandatory; there is no implicit dropping policy. `DROP` accepts
+that false positives can discard genuinely new records. Both forwarding decisions
+also forward actual repeats. No decision means the event has been delivered to a
+sink. This is not an at-most-once or
 exactly-once delivery guarantee, nor latest-event-time selection.
 
 The callback runs synchronously on the operator thread. Keep it quick, do not
@@ -46,6 +47,53 @@ mutate the record, and do not capture non-serializable objects such as a live
 database client. Callback failures fail the task; null decisions and null IDs
 are errors. This version accepts string event IDs with the core library's UTF-8
 semantics. It does not implicitly use `toString()` to encode arbitrary IDs.
+
+## Forward With Membership
+
+Use `FORWARD_WITH_MEMBERSHIP` and `applyToWithMembership` when downstream code
+needs the observation alongside the original event:
+
+```java
+var output = BloomDeduplicator.<Event>by(Event::eventId)
+    .scalable(1_000)
+    .onPossibleDuplicate(event -> Decision.FORWARD_WITH_MEMBERSHIP)
+    .build()
+    .applyToWithMembership(events.keyBy(Event::tenantId))
+    .uid("event-membership-result");
+```
+
+The output type is `MembershipResult<Event>`, a Java record in
+`io.transductive.presence.flink`:
+
+```java
+Event event = result.value();
+boolean maybePresent = result.maybePresent();
+```
+
+| Observation Before Insertion | Output |
+| --- | --- |
+| Definitely absent from this group's current Bloom | Original event with `maybePresent() == false`; the ID is remembered |
+| Possibly present and the callback forwards it | Original event with `maybePresent() == true` |
+| Possibly present and the callback returns `DROP` | No output |
+
+The flag describes the Bloom's observation, **not proof of a duplicate**. A new
+ID can receive `true` because of a false positive. After a HEAP reset, a
+previously observed ID can receive `false` again. The callback still runs only
+for possible duplicates; definitely-absent events do not invoke it.
+
+Flink needs one output type when the job is constructed. `applyToWithMembership`
+wraps **every forwarded event**, including definitely-absent events. If a callback
+mixes `FORWARD` and `FORWARD_WITH_MEMBERSHIP`, both yield a result with the actual
+membership flag. `DROP` still suppresses output. The existing `applyTo` preserves
+`T`; if its callback returns `FORWARD_WITH_MEMBERSHIP`, the task fails with an
+instruction to use `applyToWithMembership` instead. A callback's decision is
+only known when a possible duplicate arrives, so this check happens at runtime.
+
+Presence supplies the wrapper's Flink type information using the input stream's
+payload type, so callers do not need an extra `.returns(...)`. The wrapper uses
+Flink's record/POJO serializer and preserves the configured serializer for `T`.
+It wraps the incoming value without copying or mutating it; ordinary Flink
+object-reuse rules apply. Event timestamps and watermarks are preserved.
 
 ## Choose Filter Sizing
 
@@ -78,8 +126,8 @@ are not implemented here.
 
 ## Checkpoint Awareness
 
-Configure Flink checkpointing **before** `applyTo` for a startup warning. When
-checkpointing is enabled, each operator instance warns that HEAP membership
+Configure Flink checkpointing **before** `applyTo` or `applyToWithMembership` for
+a startup warning. When checkpointing is enabled, each operator instance warns that HEAP membership
 is excluded from checkpoints and savepoints. S3, filesystem, and JobManager
 checkpoint storage all have the same limitation. The configured Flink state
 backend is independent of both the checkpoint destination and our HEAP choice.
@@ -148,6 +196,10 @@ checkpoint restore. `BloomDeduplicatorMiniClusterTest` is also in the ordinary
 test suite: a JUnit-managed MiniCluster runs two TaskManagers and exercises both
 fixed/scalable filters with `DROP` and `FORWARD`. It verifies tenant isolation,
 exact output records, preserved payloads, and output from both parallel tasks.
+It also exercises all three decisions with `MembershipResult` output, forces
+network serialization with generic types disabled, and verifies the original
+payload and membership flag. Operator tests cover pre-insertion observations,
+false positives, timestamps, watermarks, mixed policies, and HEAP reset behavior.
 Run it from IntelliJ's test gutter or from the repository root:
 
 ```sh
