@@ -407,7 +407,7 @@ not guaranteed. Timed and profiled results are kept separate.
 Large benchmark commands generate the grayscale review automatically from the
 cases that actually ran. The HTML uses checked-in [Pebble](https://pebbletemplates.io/)
 templates: a Jinja-like Java engine with automatic HTML escaping. Templates live
-in `src/benchmark/resources/reports/`; `layout.peb` owns the shared design, and
+in `presence/src/benchmark/resources/reports/`; `layout.peb` owns the shared design, and
 `review.peb` composes charts, tables, evidence, and profiles. Existing benchmark
 and heap reports use the same rendering engine.
 

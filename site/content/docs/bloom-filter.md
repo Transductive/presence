@@ -55,6 +55,22 @@ Incremental addition avoids repeated division. A precomputed reciprocal accelera
 
 Concurrent queries need synchronization because the instance reuses mutable hashing workspace. Do not infer thread safety from the absence of inserts.
 
+## Save and Restore Membership
+
+```java
+var members = BloomFilter.forStrings(1_000, 0.01);
+members.put("event-42");
+byte[] snapshot = members.snapshot();
+var restored = BloomFilter.restoreStrings(snapshot);
+```
+
+Snapshots copy the bit array, dimensions, and hashing/encoding mode into a
+versioned, checksummed format. They do not retain input values or serialize an
+encoder. Byte-encoded filters use `BloomFilter.restore(snapshot, encoder)` with
+the original encoding semantics. Capture snapshots without concurrent mutation;
+the returned bytes and restored filter are independent of the original instance.
+Storage and atomic publication remain the application's responsibility.
+
 ## Read the Theory
 
 The starting reference is Justin Wyss-Gallifent's **CMSC 420: Bloom Filters**, University of Maryland, November 30, 2023. The implementation follows its treatment of insertion, lookup, and sizing in sections 2–4.

@@ -23,5 +23,33 @@ jobs:
       - name: Lint GitHub Actions workflows
         if: matrix.os == 'ubuntu-latest'
         run: mise run ci:lint
-      - name: Build library and run unit tests
+      - name: Build both libraries and run unit tests
         run: mise run ci
+
+  documentation:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.11.6
+      - name: Verify guides, both API references, and core playground assets
+        run: mise run site:check
+
+  flink-integration:
+    name: Flink ${{ matrix.flink }} / Java 21
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        flink: ['2.0.0', '2.3.0']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.11.6
+      - name: Verify the keyed integration against this Flink version
+        run: mise run gradle -- :presence-flink:build :presence-flink:integrationTest -PflinkVersion=${{ matrix.flink }}

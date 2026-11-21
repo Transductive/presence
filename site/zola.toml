@@ -52,7 +52,7 @@ show_toggle = false
 
 [extra.devlab.footer]
 show = true
-note = "Theory meets the machine."
+note = "Theory Meets The Machine."
 show_link_names = true
 links = [
     { name = "Source", path = "https://github.com/Transductive/presence" },

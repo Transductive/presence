@@ -20,7 +20,16 @@ The default deployment base is `https://transductive.github.io/presence/`;
 override it with `-- "-PsiteBaseUrl=https://example.com/docs/"`. Building does not
 publish. The artifact can be served by any static host; no Node or application
 server is needed. The Pages workflow builds and verifies it before deployment;
-the separate library CI builds and runs unit tests on Windows, macOS, and Linux.
+the separate library CI builds both modules and runs unit tests on Windows, macOS, and Linux.
+A documentation CI job runs the same site check on pull requests, before merge.
+
+The [Flink guide](content/docs/flink.md) explains **operator parallelism**,
+**subtask ownership**, and per-**stream key** `ScalableBloomFilter` or `BloomFilter`
+instances, with links to Flink terminology and Presence Javadoc. It is static
+documentation. Its API reference
+is unpacked from `presence-flink`'s Javadoc artifact into `build/site/api/flink/`.
+Only HTML and documentation assets are copied; Flink runtime dependencies and
+the integration JAR never enter `playground/lib/` or the browser classpath.
 
 ## Publish with GitHub Pages
 
@@ -76,7 +85,8 @@ in. The editable examples live in `static/playground/Playground.java` and
 `static/playground/ScalablePlayground.java`; both declare `class Playground`
 because each is compiled separately. `site:check` compiles and runs both shipped
 examples against the built JAR, alongside the bridge's unit tests. The normal library `build`/CI still
-runs only core tests, with no benchmarks or browser runtime downloads.
+runs core and Flink adapter unit tests, with no benchmarks or browser runtime downloads.
+A separate CI job verifies the Flink integration in a local runtime.
 
 The Java preview server (`../tools/SiteServer.java`) adds JAR byte-range support
 to the JDK static-file handler. GitHub Pages supports these requests too. Test
@@ -109,6 +119,12 @@ Page titles, headings, cards, and example names use title case. Follow the
 - `content/`: authored Markdown guides and the homepage code example.
 - `templates/`: homepage and small DevLab overrides. These HTML files are source.
 - `static/`: local styles, fonts, favicon, sizing calculator, and playground UI.
+- `static/images/flink-memory-state.png`: checked-in architecture illustration.
+  Update this 2400 × 1680 PNG when the memory/state architecture changes. The Flink
+  guide embeds it through `templates/partials/architecture-diagram.html` and
+  includes a text walkthrough and a full-size link. Serving the image needs no
+  external account or runtime connection; it is an authored documentation asset,
+  separate from ignored generated reports.
 - `playground/`: website-only Java compiler bridge and its unit tests.
 - `themes/devlab-theme/`: unmodified vendored runtime, MIT licensed.
 - Java source comments: generated API reference; do not hand-edit generated HTML.

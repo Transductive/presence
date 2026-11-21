@@ -36,10 +36,30 @@ Use `mise run gradle -- <arguments>` for Gradle commands that do not have
 a named mise task. Build and publish commands propagate failures, including
 test failures, back to your terminal and CI.
 
-Keep production code dependent only on the Java standard library. Tests may use
+Keep core production code in `presence/` dependent only on the Java standard library. Tests may use
 JUnit Jupiter; JMH and the JFR converter belong only to the benchmark source set.
 Add tests for observable behavior and boundary cases; probability
 checks should use deterministic data and generous, explained bounds.
+
+`presence-flink/` owns the Java DataStream integration and its Flink API dependencies.
+The root coordinates both modules and the website; shared Java packaging rules
+live in `gradle/library-conventions.gradle.kts`. Use `mise run build:all` for both
+libraries, `mise run flink:test` for adapter tests, and `mise run flink:integration`
+for the local parallel Flink job. CI runs both libraries' unit tests and a separate
+Flink compatibility job. Integration tests do not require Docker, Kafka, or S3.
+RocksDB JNI recovery cases run on Linux; Windows and macOS skip those native cases
+and verify recovery with Flink's managed heap backend. Use local `act` to exercise
+Linux RocksDB from another OS. The integration suite includes a deliberate job
+failure after a completed checkpoint, followed by restored membership checks.
+
+The root Gradle project is named `presence-build` so it has a distinct component
+identity from `:presence`. The published coordinates stay `io.transductive:presence`
+and `io.transductive:presence-flink`. Do not give the coordinator the core module's
+name: dependency resolution can otherwise select the disabled root JAR.
+
+CI also runs `mise run site:check` in a separate documentation job on pull
+requests. It verifies the guides, both API references, and the core-only playground.
+Pages repeats that check before publishing from `main`.
 
 Document public APIs with Javadoc, including null handling, probabilistic
 semantics, and thread-safety constraints. Compiler and Javadoc warnings fail the
@@ -60,7 +80,7 @@ insertion and lookup must always agree, and sizing targets are approximate.
 5. In **Settings → Build, Execution, Deployment → Build Tools → Gradle**, use the
    Gradle wrapper, choose that JDK as **Gradle JVM**, and choose **Gradle** for
    running tests. Reload the Gradle project.
-6. Open `BloomFilterTest` under `src/test/java` and use the gutter controls to
+6. Open `BloomFilterTest` under `presence/src/test/java` and use the gutter controls to
    run or debug the class or an individual test.
 
 An IDE launched from the desktop may not inherit mise's shell environment;
@@ -88,10 +108,10 @@ report templates. Edit the authored source; generated HTML stays ignored.
 
 ## Benchmarks
 
-Benchmark sources are in `src/benchmark/java`, with fixture checks in
-`src/benchmarkTest/java`. Run `mise run benchmark:check` explicitly to compile
+Benchmark sources are in `presence/src/benchmark/java`, with fixture checks in
+`presence/src/benchmarkTest/java`. Run `mise run benchmark:check` explicitly to compile
 the harness and verify its fixtures. Regular builds and CI only package the
-library and run its unit tests. Benchmarks remain manual until a dedicated
+libraries and run unit tests, with a separate Flink integration job. Benchmarks remain manual until a dedicated
 comment-triggered workflow is added. See [Benchmarking](docs/benchmarking.md)
 before changing workloads.
 

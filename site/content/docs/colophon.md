@@ -1,7 +1,7 @@
 +++
 title = "Colophon"
 description = "The tools and visual system behind this field guide."
-weight = 7
+weight = 8
 +++
 
 **Presence** is a library by Transductive, released under the MIT license.

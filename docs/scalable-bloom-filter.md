@@ -91,12 +91,33 @@ deterministic pseudorandom mixing, not truly independent random functions. The
 target and estimate are not guarantees for adversarial or correlated inputs;
 test the observed rate on representative data. The hashing seeds are not secret.
 
+## Layer Snapshots
+
+`layers()` exposes an unmodifiable, live list in oldest-first index order. Its
+read-only `Layer` objects expose dimensions and `snapshot()`, without writable
+bit arrays. Capture `snapshotMetadata()` and exactly the referenced ordered layer
+snapshots while the filter is not being mutated. `restoreStrings(metadata, layers)`
+creates independent UTF-8 membership; byte-encoded filters use `restore(metadata,
+layers, encoder)` with the same encoding semantics as the original.
+
+The format includes a version and CRC32C integrity check. Metadata records the
+hash strategy, encoding mode, initial capacity, probability, growth factor,
+tightening ratio, and layer count. Layer payloads record index, geometry, and
+words. Restore validates geometry and rebuilds per-slice occupancy from the bits,
+so subsequent growth preserves the original behavior. Input values and callbacks
+are never serialized. Unsupported versions, corrupt bytes, and mismatched layer
+sequences fail rather than constructing partial membership.
+
+Each snapshot is an independent byte copy. The application owns atomic storage
+and publication of the whole snapshot. The Flink adapter coordinates metadata
+and changed layers at checkpoints; the core filter itself performs no I/O.
+
 ## Operational Contract
 
 - Accepted values have no false negatives with consistent encoding and properly
   synchronized access. Growth preserves all earlier layers.
 - Instances require external synchronization, including concurrent queries.
-- Total memory grows. There is no expiration, deletion, persistence, merge, or
+- Total memory grows. There is no expiration, deletion, automatic persistence, merge, or
   fixed total memory ceiling. `bitSize()` excludes array headers, per-slice
   counters/scratch space, and the shared hashing workspace.
 - Each layer is limited to `Integer.MAX_VALUE` logical bits. Unsupported initial

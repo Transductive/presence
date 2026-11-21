@@ -12,6 +12,19 @@ can verify against your source of truth.
 
 **Java 21 · Zero runtime dependencies · MIT licensed**
 
+The core library lives in `presence/`. The optional
+[Presence Flink integration](presence-flink/README.md) lives in `presence-flink/`
+and adds duplicate handling for Flink 2.x **[`KeyedStream`](https://nightlies.apache.org/flink/flink-docs-release-2.0/api/java/org/apache/flink/streaming/api/datastream/KeyedStream.html)**
+inputs. The operator's **parallelism** determines its **subtask** count. Each
+subtask owns a separate **[`ScalableBloomFilter`](https://transductive.github.io/presence/api/io/transductive/presence/bloom/ScalableBloomFilter.html)**
+or fixed-size **[`BloomFilter`](https://transductive.github.io/presence/api/io/transductive/presence/bloom/BloomFilter.html)**
+per **stream key** assigned to it. Filters owned by subtasks on the same
+**TaskManager** share that worker JVM's heap; size memory for resident key count
+as well as per-key capacity. Core consumers do not acquire Flink dependencies.
+Both modules use the root Gradle wrapper and mise setup.
+See the [Flink field guide](https://transductive.github.io/presence/docs/flink/)
+for configuration, membership results, reset hooks, and managed-state recovery.
+
 ## A First Look
 
 ```java
@@ -57,6 +70,7 @@ growth settings, probability budgeting, and operational limits.
 | Murmur3, rapidhash v3 / Nano, Komihash, and SHA-256 strategies | Available |
 | Counting Bloom filter | Proposed |
 | Scalable Bloom filter with a shared false-positive budget | Available |
+| Keyed Java DataStream integration for Flink 2.x, with heap lookups and optional managed-state recovery | Available in the source snapshot |
 | Filter serialization and restoration | Proposed |
 | JMH lookup/construction timing, allocation, and HTML flamegraphs | Available |
 | Hot/broad absent-query benchmarks and exact downstream verification | Available |
@@ -241,9 +255,9 @@ mise run test -- --tests 'io.transductive.presence.bloom.BloomFilterTest'
 mise run gradle -- dependencies --configuration runtimeClasspath
 ```
 
-The HTML report is written to `build/reports/tests/test/index.html`. A full
-`mise run build` also produces the library, sources, and Javadoc JARs in `build/libs/`.
-API documentation is generated at `build/docs/javadoc/index.html`. CI uses
+The HTML report is written to `presence/build/reports/tests/test/index.html`. A full
+`mise run build` also produces the library, sources, and Javadoc JARs in `presence/build/libs/`.
+API documentation is generated at `presence/build/docs/javadoc/index.html`. CI uses
 `mise run ci` on Windows, macOS, and Linux. Mise delegates builds to the Gradle wrapper,
 so Gradle controls build and test behavior in both the terminal and IntelliJ.
 Regular `build`, `check`, and `ci` do not compile or run benchmark sources or
