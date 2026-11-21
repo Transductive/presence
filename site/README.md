@@ -23,7 +23,10 @@ server is needed. The Pages workflow builds and verifies it before deployment;
 the separate library CI builds both modules and runs unit tests on Windows, macOS, and Linux.
 A documentation CI job runs the same site check on pull requests, before merge.
 
-The [Flink guide](content/docs/flink.md) is static documentation. Its API reference
+The [Flink guide](content/docs/flink.md) explains **operator parallelism**,
+**subtask ownership**, and per-**stream key** `ScalableBloomFilter` or `BloomFilter`
+instances, with links to Flink terminology and Presence Javadoc. It is static
+documentation. Its API reference
 is unpacked from `presence-flink`'s Javadoc artifact into `build/site/api/flink/`.
 Only HTML and documentation assets are copied; Flink runtime dependencies and
 the integration JAR never enter `playground/lib/` or the browser classpath.

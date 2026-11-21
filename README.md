@@ -14,8 +14,14 @@ can verify against your source of truth.
 
 The core library lives in `presence/`. The optional
 [Presence Flink integration](presence-flink/README.md) lives in `presence-flink/`
-and adds keyed Java DataStream duplicate handling for Flink 2.x. Core consumers
-do not acquire Flink dependencies. Both modules use the root Gradle wrapper and mise setup.
+and adds duplicate handling for Flink 2.x **[`KeyedStream`](https://nightlies.apache.org/flink/flink-docs-release-2.0/api/java/org/apache/flink/streaming/api/datastream/KeyedStream.html)**
+inputs. The operator's **parallelism** determines its **subtask** count. Each
+subtask owns a separate **[`ScalableBloomFilter`](https://transductive.github.io/presence/api/io/transductive/presence/bloom/ScalableBloomFilter.html)**
+or fixed-size **[`BloomFilter`](https://transductive.github.io/presence/api/io/transductive/presence/bloom/BloomFilter.html)**
+per **stream key** assigned to it. Filters owned by subtasks on the same
+**TaskManager** share that worker JVM's heap; size memory for resident key count
+as well as per-key capacity. Core consumers do not acquire Flink dependencies.
+Both modules use the root Gradle wrapper and mise setup.
 See the [Flink field guide](https://transductive.github.io/presence/docs/flink/)
 for configuration, membership results, reset hooks, and managed-state recovery.
 

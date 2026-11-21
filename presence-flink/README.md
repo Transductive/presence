@@ -1,6 +1,8 @@
 # Presence Flink
 
 Approximate duplicate suppression for **keyed Java DataStreams on Flink 2.x**.
+Choose a fixed-size **[`BloomFilter`][presence-fixed]** or a growing
+**[`ScalableBloomFilter`][presence-scalable]** for membership within each stream key.
 Uses the established DataStream API. Java 21 is required by Presence; configure
 the Flink runtime to use Java 21 too. The separate experimental DataStream API V2,
 Table/SQL, and Python APIs are outside this module.
@@ -32,12 +34,31 @@ var output = deduplicator
 output.sinkTo(yourSink);
 ```
 
-`keyBy` defines the membership scope: each tenant has an independent Bloom.
-`by` selects the event identity inside that scope. The same ID in two tenants
-can pass once in each tenant. One Bloom is allocated lazily per group, per task
-attempt. Capacity is **per group**, not per job or per parallel task. Grouping
-by each individual event ID usually wastes memory: an exact seen flag would
-be smaller than a whole Bloom for a single identity.
+**[`keyBy(Event::tenantId)`][flink-keyby]** performs **partitioning by stream key**
+and returns a **[`KeyedStream<Event, String>`][flink-keyed-stream]**. Attaching
+Presence creates a **[keyed operator][flink-keyed-operator]**; its **[operator parallelism][flink-parallelism]**
+sets how many **[operator subtasks][flink-subtasks]** execute it. At a given
+parallelism, records with the same key reach the same subtask, and each subtask
+can handle many different keys.
+
+Within each subtask, Presence lazily creates **one
+[`ScalableBloomFilter<String>`][presence-scalable] per distinct stream key** for
+`.scalable(...)`, or **one [`BloomFilter<String>`][presence-fixed] per distinct
+stream key** for `.fixed(...)`. For example, parallelism 3 and four accessed
+tenant keys means four filter instances distributed across three subtasks.
+There is no global shared filter, and parallelism does not set the filter count.
+
+**`by(Event::eventId)`** selects the **membership ID** checked inside that per-key
+filter. Here, `tenantId` is the stream key and `eventId` is the membership ID.
+The same membership ID in different tenants has independent membership.
+Capacity is **per stream key**. Choose a key that groups many membership IDs
+together; keying by individual event ID allocates a whole filter per ID.
+
+Flink's **[keyed state][flink-keyed-state]** is scoped to the current record's
+stream key. Both **[`BloomBackend.HEAP`][presence-backend]** and
+**[`BloomBackend.MANAGED_STATE`][presence-backend]** keep their live filter
+instances in JVM heap. Only `MANAGED_STATE` also registers Flink-managed keyed
+state for recovery. Calling `keyBy` alone does not checkpoint heap objects.
 
 The operator checks membership before insertion. A definitely-absent ID is
 remembered and its original record is forwarded. A possible duplicate invokes
@@ -68,7 +89,7 @@ var output = BloomDeduplicator.<Event>by(Event::eventId)
     .uid("event-membership-result");
 ```
 
-The output type is `MembershipResult<Event>`, a Java record in
+The output type is **[`MembershipResult<Event>`][presence-result]**, a Java record in
 `io.transductive.presence.flink`:
 
 ```java
@@ -78,13 +99,13 @@ boolean maybePresent = result.maybePresent();
 
 | Observation Before Insertion | Output |
 | --- | --- |
-| Definitely absent from this group's current Bloom | Original event with `maybePresent() == false`; the ID is remembered |
+| Definitely absent from the current stream key's filter | Original event with `maybePresent() == false`; the membership ID is remembered |
 | Possibly present and the callback forwards it | Original event with `maybePresent() == true` |
 | Possibly present and the callback returns `DROP` | No output |
 
-The flag describes the Bloom's observation, **not proof of a duplicate**. A new
-ID can receive `true` because of a false positive. After a HEAP reset, a
-previously observed ID can receive `false` again. The callback still runs only
+The flag describes the configured filter's observation, **not proof of a
+duplicate**. A new membership ID can receive `true` because of a false positive.
+After a per-key reset, a previously observed ID can receive `false` again. The callback still runs only
 for possible duplicates; definitely-absent events do not invoke it.
 
 Flink needs one output type when the job is constructed. `applyToWithMembership`
@@ -105,22 +126,43 @@ object-reuse rules apply. Event timestamps and watermarks are preserved.
 
 | Option | Behavior |
 | --- | --- |
-| `.scalable()` | Default: start at 1,000 distinct IDs per group and grow |
-| `.scalable(initialCapacity)` | Choose the first layer's expected capacity |
-| `.fixed(expectedInsertions)` | Fixed storage; overfilling increases false positives |
+| `.scalable()` | Default: a **`ScalableBloomFilter`** with initial capacity 1,000 per stream key |
+| `.scalable(initialCapacity)` | Choose the first layer's expected capacity in **`ScalableBloomFilter`** |
+| `.fixed(expectedInsertions)` | A fixed-size **`BloomFilter`**; overfilling increases false positives |
 | `.falsePositiveProbability(0.01)` | Default target: 1%; scalable budgets this across all layers |
 | `.hashingStrategy(strategy)` | Choose a core strategy; default is Murmur3 |
 | `.backend(BloomBackend.HEAP)` | Default: operator-owned memory, excluded from checkpoints |
 | `.backend(BloomBackend.MANAGED_STATE)` | Heap primary with checkpointed layers and counters |
 
-Building configuration allocates no Bloom arrays. Actual sizing is subject to
-the core filter's supported limits when a group is first created. The number
-of groups and scalable layers can grow without a fixed total memory bound.
+Building configuration allocates no filter bit arrays. Actual sizing is subject
+to the core filter's supported limits when a stream key's filter is first created.
+The number of distinct stream keys and the layers in each `ScalableBloomFilter`
+can grow without a fixed total memory bound.
+
+### Budget Heap per TaskManager
+
+A **[TaskManager][flink-task-slots]** is a worker JVM. Its **task slots** provide
+scheduling capacity; **operator parallelism** determines the number of
+**subtasks**. Multiple subtasks can share one TaskManager's JVM heap. A task slot
+does not impose a separate memory cap on Presence's operator-owned filters.
+
+For example, **one TaskManager with eight task slots**, running Presence at
+**parallelism 8**, can hold **10,000 `ScalableBloomFilter` instances** after
+processing 10,000 distinct tenant keys. The subtasks divide ownership of the
+keys, but all filter instances consume the **same worker's heap**. Increasing
+parallelism alone redistributes those keys and adds subtask overhead; it does
+not multiply the filter count for a fixed set of keys.
+
+Budget memory from **resident stream-key count**, **per-key filter size**, and
+all `ScalableBloomFilter` layers, plus key, index, and other job overhead across
+the worker's subtasks. **Per-key capacity** does not cap the number of keys.
+**`MANAGED_STATE`** adds recovery storage while retaining active filter instances
+in heap; neither backend automatically evicts idle keys.
 
 ## Keep Lookups on Heap and Recover Membership
 
-Select `MANAGED_STATE` to retain fast heap lookups while including membership in
-Flink's keyed checkpoints and savepoints:
+Select **`BloomBackend.MANAGED_STATE`** to retain heap lookups while including
+membership in Flink **checkpoints and savepoints**:
 
 ```java
 environment.enableCheckpointing(10_000);
@@ -134,13 +176,22 @@ var output = BloomDeduplicator.<Event>by(Event::eventId)
     .uid("tenant-event-membership");
 ```
 
-Each stream key has a `MapState<Integer, byte[]>`: the map key is a layer index,
-and the value is that layer's versioned snapshot. A small `ValueState<byte[]>`
-manifest carries filter configuration, layer count, and the event counter used
-by reset hooks. A fixed Bloom uses layer zero. Flink's state backend (managed
-heap or RocksDB) and checkpoint destination remain application choices.
+Each **stream key** has its own **[Flink-managed keyed state][flink-keyed-state]**:
 
-Inserts and lookups run against the heap filter. Mutations mark layers dirty;
+- **[`MapState<Integer, byte[]>`][flink-map-state]** maps a **layer index** to
+  that layer's versioned snapshot. Flink supplies the outer stream key through
+  its current-key context; the integer map key identifies a layer inside that
+  key's filter, not a tenant ID.
+- **[`ValueState<byte[]>`][flink-value-state]** holds the **manifest**: filter
+  configuration, layer count, and the per-key event counter used by reset hooks.
+
+Each `ScalableBloomFilter` may save multiple layers. A fixed-size `BloomFilter`
+uses only layer zero. Flink's **state backend** (managed heap or RocksDB) and
+**checkpoint storage** remain application choices, independent of Presence's
+`BloomBackend` option.
+
+Inserts and lookups run against the stream key's heap `ScalableBloomFilter` or
+`BloomFilter` instance. Mutations mark **layers** dirty;
 repeated mutations are coalesced. Before the backend captures a checkpoint,
 the operator flushes dirty layers for **every dirty stream key**, then writes
 its manifest. Duplicate-only traffic updates the counter without rewriting
@@ -151,18 +202,19 @@ After restore, each key's saved layers are loaded once on first access, before
 its hooks or membership check. Resident keys need no further backend reads.
 Untouched restored keys remain in managed state and are included in later
 checkpoints without being loaded. New jobs do not read state to create filters.
-Flink redistributes keyed state during rescaling; heap copies are reconstructed
-under their new owners.
+When operator **parallelism** changes, Flink redistributes **keyed state** across
+the new **operator subtasks**. Each receiving subtask reconstructs the filter
+instances for its stream keys on first access.
 
 A reset discards the heap layers and schedules deletion of the old saved layers.
-That deletion, the replacement layer, and the reset counter enter the same next
-checkpoint. Recovery returns to the selected checkpoint's membership lifetime;
+That deletion, the replacement filter's layers, and the reset counter enter the
+same next checkpoint. Recovery returns to the selected checkpoint's membership lifetime;
 it does not resurrect a pre-reset filter from a later checkpoint.
 
 Recovery requires a **completed checkpoint or savepoint**, replayable inputs,
 and the normal Flink recovery configuration. A backend write or `close()` is not
 a durable recovery boundary. Dirty state may lag on the backend between
-checkpoints, but is synchronized when a snapshot is taken. The Bloom remains
+checkpoints, but is synchronized when a snapshot is taken. Membership remains
 approximate; persistence does not make `DROP` an exact deduplicator.
 
 Keep the operator UID, key semantics, ID encoding, filter type, capacity,
@@ -170,8 +222,9 @@ probability, and hashing strategy stable across restores. Configuration changes
 are rejected when a saved key is first loaded. Snapshot versions and checksums
 reject unsupported or corrupt core payloads; there is no automatic state migration.
 
-All resident Blooms still need to fit in JVM heap. Managed state adds a second
-copy and checkpoint serialization/write costs; it is not an overflow tier or
+All resident `ScalableBloomFilter` or `BloomFilter` instances still need to fit
+in JVM heap. Managed state adds a second copy and checkpoint serialization/write
+costs; it is not an overflow tier or
 an eviction policy. Flushing a large dirty layer can delay the synchronous
 checkpoint phase. Only changed **layers** are written, not individual changed words.
 
@@ -195,12 +248,14 @@ var output = BloomDeduplicator.<Event>by(Event::eventId)
     .applyTo(events.keyBy(Event::tenantId));
 ```
 
-Each tenant has its own counter. Events 1–10,000 share membership; event 10,001
-clears that tenant before its lookup and becomes event 1 of the next batch.
+Each **stream key** has its own **event counter**. In this `.scalable(...)`
+example, events 1–10,000 use the same **`ScalableBloomFilter`**; event 10,001
+replaces it before lookup and becomes event 1 of the next batch.
 **Every observed event counts**, including duplicates and dropped events. This
-is independent of initial Bloom capacity and is not a count of distinct IDs.
+is independent of initial filter capacity and is not a count of distinct
+membership IDs.
 The threshold must be positive. The reset occurs on the next arriving event,
-so an idle tenant keeps its last filter until it receives another event.
+so an idle stream key keeps its last filter until it receives another event.
 
 ### Reset on a Tombstone
 
@@ -221,8 +276,8 @@ Then add this builder option:
 .beforeLookup(ResetPolicy.ON_TOMBSTONE)
 ```
 
-When `isTombstone()` is true, the policy clears **the entire current tenant's
-membership**, including its counter. It does not delete a single event ID.
+When `isTombstone()` is true, the policy clears **the current stream key's entire
+filter and event counter**. It does not delete a single membership ID.
 `applyTo` and `applyToWithMembership` reject a declared stream type that does not
 implement `Tombstone`, before attaching an operator. The policy also checks
 actual event instances at runtime. Declare the implementing type, rather than
@@ -259,22 +314,23 @@ later calls or using it from another thread throws `IllegalStateException`.
 
 ### Understand the Reset Boundary
 
-Clearing releases the old filter for garbage collection, including all scalable
-layers; it does not merely zero their bit arrays. The current event creates a
-new filter at the configured initial size. IDs from a previous batch may pass
+Clearing releases the old `ScalableBloomFilter` (including all its layers) or
+`BloomFilter` for garbage collection; it does not merely zero the bit arrays.
+The current event creates a new filter at the configured initial size. IDs from a previous batch may pass
 again. With `HEAP`, counters and membership start empty after restart or restore.
 With `MANAGED_STATE`, both recover from the selected checkpoint.
 
-These are event-driven, per-key resets. They do not evict idle groups, bound the
-total number of groups, or guarantee a heap/probability budget. There is no
-timer, TTL, or Flink window lifecycle attached to this policy.
+These are event-driven, per-key resets. They do not evict idle stream keys, bound
+the number of per-key filter instances, or guarantee a heap/probability budget.
+There is no timer, TTL, or Flink window lifecycle attached to this policy.
 
 ## Understand Heap Lifetime
 
-HEAP means ordinary operator-owned memory, **not** Flink-managed heap state.
-The adapter retains group keys and Bloom bits, but no incoming records or event
-IDs. It copies retained group keys through Flink's configured serializer so
-upstream object reuse cannot mutate stored map keys. Membership is released
+**`BloomBackend.HEAP`** means ordinary memory owned by each **operator subtask**,
+**not** Flink-managed heap state. The adapter retains **stream keys** and filter
+bits, but no incoming records or membership IDs. It copies retained stream keys
+through Flink's configured serializer so upstream object reuse cannot mutate
+stored map keys. Membership is released
 on a per-key reset or when the task closes, and starts empty after restart,
 restore, or rescaling. Without a reset hook, membership lasts for the task attempt.
 
@@ -304,14 +360,15 @@ once per operator instance per task attempt.
 
 Metrics under the `presence` group expose `possibleDuplicates`, `forwarded`,
 `dropped`, `bloomGroups`, and `membershipResets`. The reset counter counts existing
-groups removed by hooks; clearing an absent group is a no-op. A possible duplicate
+per-key filters reset by hooks; clearing an absent filter is a no-op. A possible duplicate
 is not an exact duplicate count or a measured false-positive count.
 
 `MANAGED_STATE` also exposes `stateLayerReads`, `stateLayerWrites`, and
 `stateLayerBytesWritten`. Reads count restored layer loads; writes count successful
 backend puts, including retries, rather than completed checkpoints. Bytes exclude
-the small manifests and backend overhead. `bloomGroups` counts heap-resident
-groups, so restored but not yet loaded groups are not included. Metrics reset on
+the small manifests and backend overhead. **`bloomGroups`** counts **heap-resident
+stream keys**, excluding restored keys not yet accessed; it does not count filter
+layers or Flink **[key groups][flink-key-groups]**. Metrics reset on
 each task attempt; the per-key batch counter is checkpointed separately.
 
 ## Add the Module to a Job
@@ -383,7 +440,7 @@ with every other 2.x release is not implied. Flink's
 still describes Java 21 support as experimental; the tests cover this adapter,
 not every connector or cluster configuration.
 
-Unit tests cover group isolation, both filter types, false positives, policy
+Unit tests cover stream-key isolation, both filter types, false positives, policy
 decisions, serializable configuration, copied keys, and heap reset after a
 checkpoint restore. `BloomDeduplicatorMiniClusterTest` is also in the ordinary
 test suite: a JUnit-managed MiniCluster runs two TaskManagers and exercises both
@@ -414,3 +471,18 @@ tasks and object reuse. No external Kafka broker or S3 service is required.
 
 Test reports are generated in this module's `build/reports/tests/`. Benchmarks
 remain separate, manually invoked tasks.
+
+[flink-keyby]: https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/datastream/operators/overview/#keyby
+[flink-keyed-stream]: https://nightlies.apache.org/flink/flink-docs-release-2.0/api/java/org/apache/flink/streaming/api/datastream/KeyedStream.html
+[flink-subtasks]: https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/concepts/flink-architecture/#tasks-and-operator-chains
+[flink-parallelism]: https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/datastream/execution/parallel/#operator-level
+[flink-task-slots]: https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/concepts/flink-architecture/#task-slots-and-resources
+[flink-keyed-operator]: https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/datastream/operators/process_function/
+[flink-keyed-state]: https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/datastream/fault-tolerance/state/#using-keyed-state
+[flink-key-groups]: https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/concepts/stateful-stream-processing/#keyed-state
+[flink-map-state]: https://nightlies.apache.org/flink/flink-docs-release-2.0/api/java/org/apache/flink/api/common/state/MapState.html
+[flink-value-state]: https://nightlies.apache.org/flink/flink-docs-release-2.0/api/java/org/apache/flink/api/common/state/ValueState.html
+[presence-fixed]: https://transductive.github.io/presence/api/io/transductive/presence/bloom/BloomFilter.html
+[presence-scalable]: https://transductive.github.io/presence/api/io/transductive/presence/bloom/ScalableBloomFilter.html
+[presence-backend]: https://transductive.github.io/presence/api/flink/io/transductive/presence/flink/BloomBackend.html
+[presence-result]: https://transductive.github.io/presence/api/flink/io/transductive/presence/flink/MembershipResult.html
