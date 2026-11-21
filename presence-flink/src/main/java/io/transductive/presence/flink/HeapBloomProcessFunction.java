@@ -1,6 +1,8 @@
 package io.transductive.presence.flink;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -31,22 +33,31 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     private final TypeInformation<K> keyType;
     private final CheckpointAwareness checkpoints;
     private final Output<T, OUT> output;
+    private final ArrayList<BeforeLookup<? super T>> beforeLookup;
     private transient HeapBloomIndex<K> index;
     private transient Counter possibleDuplicates;
     private transient Counter forwarded;
     private transient Counter dropped;
+    private transient Counter membershipResets;
     private transient boolean warned;
     private transient boolean restored;
 
     HeapBloomProcessFunction(KeySelector<T, String> idSelector, PossibleDuplicateHandler<T> handler,
             BloomConfiguration configuration, TypeInformation<K> keyType, CheckpointAwareness checkpoints,
             Output<T, OUT> output) {
+        this(idSelector, handler, configuration, keyType, checkpoints, output, List.of());
+    }
+
+    HeapBloomProcessFunction(KeySelector<T, String> idSelector, PossibleDuplicateHandler<T> handler,
+            BloomConfiguration configuration, TypeInformation<K> keyType, CheckpointAwareness checkpoints,
+            Output<T, OUT> output, List<BeforeLookup<? super T>> beforeLookup) {
         this.idSelector = idSelector;
         this.handler = handler;
         this.configuration = configuration;
         this.keyType = keyType;
         this.checkpoints = checkpoints;
         this.output = output;
+        this.beforeLookup = new ArrayList<>(beforeLookup);
     }
 
     static <T> Output<T, T> records() {
@@ -71,6 +82,7 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
         possibleDuplicates = metrics.counter("possibleDuplicates");
         forwarded = metrics.counter("forwarded");
         dropped = metrics.counter("dropped");
+        membershipResets = metrics.counter("membershipResets");
         metrics.gauge("bloomGroups", index::groupCount);
         if (checkpoints.enabled() || restored) warnOnce();
     }
@@ -78,6 +90,11 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     @Override
     public void processElement(T event, Context context, Collector<OUT> collector) throws Exception {
         String id = Objects.requireNonNull(idSelector.getKey(event), "Membership ID must not be null");
+        if (!beforeLookup.isEmpty()) {
+            try (var membership = new HeapMembershipControl<>(index, context.getCurrentKey(), membershipResets)) {
+                for (var hook : beforeLookup) hook.beforeLookup(event, membership);
+            }
+        }
         boolean maybePresent = index.observe(context.getCurrentKey(), id);
         Decision decision = Decision.FORWARD;
         if (maybePresent) {

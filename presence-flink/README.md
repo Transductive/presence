@@ -115,13 +115,107 @@ Building configuration allocates no Bloom arrays. Actual sizing is subject to
 the core filter's supported limits when a group is first created. The number
 of groups and scalable layers can grow without a fixed total memory bound.
 
+## Reset Membership before a Lookup
+
+No reset policy is enabled by default. Add custom or built-in callbacks with
+`beforeLookup`; repeated calls append hooks in registration order. Hooks run
+for every event after its ID is validated, before membership is checked or the
+current event is counted. They work with both filter types and output modes.
+
+### Reset by Event Count
+
+```java
+import io.transductive.presence.flink.ResetPolicy;
+
+var output = BloomDeduplicator.<Event>by(Event::eventId)
+    .scalable(1_000)
+    .beforeLookup(ResetPolicy.BATCH_RESET_SIZE.every(10_000))
+    .onPossibleDuplicate(event -> Decision.DROP)
+    .build()
+    .applyTo(events.keyBy(Event::tenantId));
+```
+
+Each tenant has its own counter. Events 1–10,000 share membership; event 10,001
+clears that tenant before its lookup and becomes event 1 of the next batch.
+**Every observed event counts**, including duplicates and dropped events. This
+is independent of initial Bloom capacity and is not a count of distinct IDs.
+The threshold must be positive. The reset occurs on the next arriving event,
+so an idle tenant keeps its last filter until it receives another event.
+
+### Reset on a Tombstone
+
+Implement `Tombstone` on the stream's declared event type:
+
+```java
+import io.transductive.presence.flink.Tombstone;
+
+public record Event(String tenantId, String eventId, boolean tombstone)
+        implements Tombstone {
+    @Override public boolean isTombstone() { return tombstone; }
+}
+```
+
+Then add this builder option:
+
+```java
+.beforeLookup(ResetPolicy.ON_TOMBSTONE)
+```
+
+When `isTombstone()` is true, the policy clears **the entire current tenant's
+membership**, including its counter. It does not delete a single event ID.
+`applyTo` and `applyToWithMembership` reject a declared stream type that does not
+implement `Tombstone`, before attaching an operator. The policy also checks
+actual event instances at runtime. Declare the implementing type, rather than
+an unrelated superclass or `Object`.
+
+A tombstone is still an ordinary input record for lookup/output: it requires a
+non-null event ID, is remembered in the new filter, counts as its first event,
+and is forwarded with `maybePresent() == false` in membership-output mode.
+It is not consumed as a control-only message. A downstream filter can suppress
+markers when your sink should not receive them.
+
+### Supply a Custom Hook
+
+For an application event with a `startsNewBatch()` signal:
+
+```java
+.beforeLookup((event, membership) -> {
+    if (event.startsNewBatch()) {
+        membership.clearCurrentKey();
+    }
+})
+```
+
+`membership.eventsSinceReset()` returns this key's earlier event count, excluding
+the current event. `clearCurrentKey()` removes its filter and counter; later
+hooks see zero and the current event begins fresh membership. Repeated clears
+are harmless. Custom callbacks implement the serializable `BeforeLookup<T>`
+interface; captured objects must also be serializable. Exceptions fail the task.
+
+Custom hooks and canned policies can be registered together. They run on the
+operator thread, so avoid blocking I/O and event mutation. The control handle
+is valid only during that record's before-lookup callbacks; retaining it for
+later calls or using it from another thread throws `IllegalStateException`.
+
+### Understand the Reset Boundary
+
+Clearing releases the old filter for garbage collection, including all scalable
+layers; it does not merely zero their bit arrays. The current event creates a
+new filter at the configured initial size. IDs from a previous batch may pass
+again. Counters, like HEAP membership, start empty after restart or restore.
+
+These are event-driven, per-key resets. They do not evict idle groups, bound the
+total number of groups, or guarantee a heap/probability budget. There is no
+timer, TTL, or Flink window lifecycle attached to this policy.
+
 ## Understand Heap Lifetime
 
 HEAP means ordinary operator-owned memory, **not** Flink-managed heap state.
 The adapter retains group keys and Bloom bits, but no incoming records or event
 IDs. It copies retained group keys through Flink's configured serializer so
 upstream object reuse cannot mutate stored map keys. Membership is released
-when the task closes and starts empty after restart, restore, or rescaling.
+on a per-key reset or when the task closes, and starts empty after restart,
+restore, or rescaling. Without a reset hook, membership lasts for the task attempt.
 
 This first keyed operator has no TTL, window ownership, or window cleanup.
 Putting it before or after a window operator does not make its heap expire.
@@ -148,8 +242,9 @@ registered or saved. The job continues, and the warning is emitted at most
 once per operator instance per task attempt.
 
 Metrics under the `presence` group expose `possibleDuplicates`, `forwarded`,
-`dropped`, and `bloomGroups`. A possible duplicate is not an exact duplicate
-count or a measured false-positive count.
+`dropped`, `bloomGroups`, and `membershipResets`. The reset counter counts existing
+groups removed by hooks; clearing an absent group is a no-op. A possible duplicate
+is not an exact duplicate count or a measured false-positive count.
 
 ## Add the Module to a Job
 
@@ -230,6 +325,10 @@ It also exercises all three decisions with `MembershipResult` output, forces
 network serialization with generic types disabled, and verifies the original
 payload and membership flag. Operator tests cover pre-insertion observations,
 false positives, timestamps, watermarks, mixed policies, and HEAP reset behavior.
+`ResetPolicyMiniClusterTest` combines batch, tombstone, and custom hooks across
+parallel tenants, including configuration serialization and immutable builder
+snapshots. Hook tests also cover dropped-event counting, reset boundaries,
+declared-type validation, and control-handle lifetime/thread restrictions.
 Run it from IntelliJ's test gutter or from the repository root:
 
 ```sh

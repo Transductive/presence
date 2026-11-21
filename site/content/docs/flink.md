@@ -125,6 +125,91 @@ filters; scalable layers can also grow. There is no global memory cap or evictio
 Building the configuration allocates no Bloom arrays. Filter sizing limits are
 checked when a group's filter is created.
 
+## Reset Membership Explicitly
+
+Use `beforeLookup` for event-driven resets. No reset is enabled by default.
+Each call appends a hook; they run in registration order after ID validation,
+before the current event is checked or counted.
+
+### Count Events per Key
+
+```java
+import io.transductive.presence.flink.ResetPolicy;
+
+var output = BloomDeduplicator.<Event>by(Event::eventId)
+    .scalable(1_000)
+    .beforeLookup(ResetPolicy.BATCH_RESET_SIZE.every(10_000))
+    .onPossibleDuplicate(event -> Decision.DROP)
+    .build()
+    .applyTo(events.keyBy(Event::tenantId));
+```
+
+Each tenant gets an independent event counter. Events 1–10,000 share a Bloom;
+event 10,001 clears it before lookup and becomes the first event in a new batch.
+Duplicates and dropped records count too. This is an event limit, independent
+of the Bloom's initial capacity or the number of distinct IDs. The size must
+be positive; an idle tenant is not cleared until its next event arrives.
+
+### Recognize Tombstones
+
+For a stream with reset markers, replace the event declaration with a type that
+implements `Tombstone`:
+
+```java
+import io.transductive.presence.flink.Tombstone;
+
+public record Event(String tenantId, String eventId, String payload, boolean tombstone)
+        implements Tombstone {
+    @Override public boolean isTombstone() { return tombstone; }
+}
+```
+
+Register the built-in hook before `.build()`:
+
+```java
+.beforeLookup(ResetPolicy.ON_TOMBSTONE)
+```
+
+`isTombstone() == true` clears the **whole current tenant's membership**, not
+one ID. Both attachment methods validate that the stream's declared record
+class implements `Tombstone`; incompatible types fail during job construction.
+Actual instances are checked at runtime as well.
+
+The tombstone must still have a non-null event ID. After resetting, it is looked
+up, remembered, and forwarded normally, with `maybePresent() == false` when
+using membership output. It counts as the first event in the new lifetime.
+This hook does not consume the marker; filter it downstream if your sink should
+not receive it.
+
+### Add Custom Logic
+
+Custom callbacks use the same per-key controls. For example, an application that
+uses a particular payload as its reset signal could register:
+
+```java
+.beforeLookup((event, membership) -> {
+    if ("reset-membership".equals(event.payload())) {
+        membership.clearCurrentKey();
+    }
+})
+```
+
+`eventsSinceReset()` reports earlier events for the current key, excluding the
+current one. `clearCurrentKey()` removes that key's filter and counter; subsequent
+hooks see zero, and lookup creates a fresh filter for the current event. You
+can combine custom callbacks with either canned policy by calling `beforeLookup`
+multiple times. Hooks implement `BeforeLookup<T>` and must be serializable.
+
+Callbacks run synchronously on the operator thread. Do not mutate events, block
+on I/O, retain the control handle, or call it from another thread. Expired or
+cross-thread control calls throw `IllegalStateException`; callback failures
+fail the task.
+
+A reset makes the old filter and all its layers eligible for garbage collection.
+It does not force garbage collection or impose a global memory limit. Old IDs
+can pass again, and idle groups are not evicted. Resets and counters belong to
+the current HEAP lifetime and are lost on restart or restore.
+
 ## Understand Recovery and Lifetime
 
 HEAP membership belongs to the operator and is **excluded from checkpoints and
@@ -137,7 +222,7 @@ checkpointing before attaching it for the startup warning. If enabled later,
 the first checkpoint triggers the warning instead; restore also warns.
 
 The operator retains copied group keys and Bloom bits, not incoming events or
-event IDs. Membership lasts until the task closes. There is no TTL or window
+event IDs. Membership lasts until a hook resets its key or the task closes. There is no TTL or window
 cleanup; placing this operator before or after a window does not make its heap
 expire. Managed state and reference-set loading are outside this first version.
 
@@ -147,12 +232,15 @@ must be confirmed before discarding an event.
 
 ## Observe and Verify
 
-Metrics under `presence` report `possibleDuplicates`, `forwarded`, `dropped`, and
-`bloomGroups`. A possible-duplicate count includes false positives.
+Metrics under `presence` report `possibleDuplicates`, `forwarded`, `dropped`,
+`bloomGroups`, and `membershipResets`. The reset counter counts existing groups
+removed by hooks; clearing an absent group does not increment it. A
+possible-duplicate count includes false positives.
 
 ```sh
 mise run flink:build
 mise run flink:test -- --tests '*BloomDeduplicatorMiniClusterTest'
+mise run flink:test -- --tests '*ResetPolicyMiniClusterTest'
 mise run flink:integration
 mise run flink:integration -- "-PflinkVersion=2.3.0"
 ```
@@ -161,6 +249,8 @@ The MiniCluster tests run two TaskManagers in JUnit, with no Kafka, S3, or Docke
 requirement. They exercise keyed routing, both Bloom layouts, all decisions,
 object reuse, and network serialization of membership results. Open the root
 Gradle project in IntelliJ IDEA and run the same tests from the gutter.
+Reset-policy tests also exercise custom/canned hook composition, per-tenant
+batch boundaries, tombstone validation, and heap/counter reset semantics.
 
 The library compiles against Flink 2.0.0; CI tests runtimes 2.0.0 and 2.3.0 on
 Java 21. Other 2.x versions are not individually verified. Flink's
@@ -169,4 +259,6 @@ describes Java 21 support as experimental; validate your own cluster and connect
 
 Read the [Flink API reference]({{ get_url(path="api/flink/index.html") }}),
 [BloomDeduplicator]({{ get_url(path="api/flink/io/transductive/presence/flink/BloomDeduplicator.html") }}),
-or [MembershipResult]({{ get_url(path="api/flink/io/transductive/presence/flink/MembershipResult.html") }}).
+[MembershipResult]({{ get_url(path="api/flink/io/transductive/presence/flink/MembershipResult.html") }}),
+[BeforeLookup]({{ get_url(path="api/flink/io/transductive/presence/flink/BeforeLookup.html") }}),
+or [ResetPolicy]({{ get_url(path="api/flink/io/transductive/presence/flink/ResetPolicy.html") }}).

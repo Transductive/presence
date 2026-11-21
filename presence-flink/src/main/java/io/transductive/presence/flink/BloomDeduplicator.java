@@ -2,6 +2,8 @@ package io.transductive.presence.flink;
 
 import io.transductive.presence.bloom.HashingStrategy;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -24,7 +26,9 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
  * Use {@link #applyToWithMembership} to include the membership observation in a
  * {@link MembershipResult} alongside every forwarded record.
  *
- * <p>HEAP membership has no TTL or window lifecycle, grows with active groups,
+ * <p>Optional {@link Builder#beforeLookup} hooks can reset the current group's
+ * membership before an event. Without hooks, there is no automatic reset.
+ * HEAP membership has no TTL or window lifecycle, grows with active groups,
  * and is lost on restart, restore, or rescaling. Checkpointing other operators
  * does not checkpoint this membership. This operator does not provide an
  * end-to-end delivery guarantee or latest-event-time selection.
@@ -39,10 +43,13 @@ public final class BloomDeduplicator<T> implements Serializable {
     private final PossibleDuplicateHandler<T> handler;
     /** Filter sizing and storage choices; contains no live membership. */
     private final BloomConfiguration configuration;
+    /** Immutable registration order; hooks hold no library-owned live membership. */
+    private final ArrayList<BeforeLookup<? super T>> beforeLookup;
 
     private BloomDeduplicator(Builder<T> builder) {
         idSelector = builder.idSelector;
         handler = Objects.requireNonNull(builder.handler, "onPossibleDuplicate must be configured explicitly");
+        beforeLookup = new ArrayList<>(builder.beforeLookup);
         configuration = new BloomConfiguration(builder.scalable, builder.capacity,
                 builder.probability, builder.hashingStrategy, builder.backend);
     }
@@ -70,12 +77,14 @@ public final class BloomDeduplicator<T> implements Serializable {
      * @param stream a stream grouped by tenant, shard, or another membership scope
      * @param <K> stream group key type
      * @return the output operator, whose UID and parallelism can be configured normally
+     * @throws IllegalArgumentException if a hook rejects the stream's declared event type
      */
     public <K> SingleOutputStreamOperator<T> applyTo(KeyedStream<T, K> stream) {
         Objects.requireNonNull(stream, "stream");
+        validateHooks(stream);
         var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
         return stream.process(new HeapBloomProcessFunction<>(idSelector, handler, configuration,
-                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.records()), stream.getType())
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.records(), beforeLookup), stream.getType())
                 .name("Presence Bloom Deduplicator");
     }
 
@@ -101,14 +110,20 @@ public final class BloomDeduplicator<T> implements Serializable {
      * @param stream a stream grouped by tenant, shard, or another membership scope
      * @param <K> stream group key type
      * @return the typed membership output, with configurable UID and parallelism
+     * @throws IllegalArgumentException if a hook rejects the stream's declared event type
      */
     public <K> SingleOutputStreamOperator<MembershipResult<T>> applyToWithMembership(KeyedStream<T, K> stream) {
         Objects.requireNonNull(stream, "stream");
+        validateHooks(stream);
         var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
         var outputType = MembershipResult.typeInformation(stream.getType());
         return stream.process(new HeapBloomProcessFunction<>(idSelector, handler, configuration,
-                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.withMembership()), outputType)
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.withMembership(), beforeLookup), outputType)
                 .name("Presence Bloom Deduplicator With Membership");
+    }
+
+    private void validateHooks(KeyedStream<T, ?> stream) {
+        for (var hook : beforeLookup) hook.validateInputType(stream.getType().getTypeClass());
     }
 
     /**
@@ -120,6 +135,7 @@ public final class BloomDeduplicator<T> implements Serializable {
     public static final class Builder<T> {
         private final KeySelector<T, String> idSelector;
         private PossibleDuplicateHandler<T> handler;
+        private final List<BeforeLookup<? super T>> beforeLookup = new ArrayList<>();
         private boolean scalable = true;
         private long capacity = 1_000;
         private double probability = 0.01;
@@ -198,6 +214,31 @@ public final class BloomDeduplicator<T> implements Serializable {
          */
         public Builder<T> onPossibleDuplicate(PossibleDuplicateHandler<T> handler) {
             this.handler = Objects.requireNonNull(handler, "handler");
+            return this;
+        }
+
+        /**
+         * Appends a callback before every membership lookup, including possible duplicates.
+         * Callbacks run in registration order after ID validation. A clear removes only
+         * the current key's filter and event counter; the current event then starts its
+         * new membership lifetime. No hooks or automatic resets are enabled by default.
+         *
+         * <p>Use {@code ResetPolicy.BATCH_RESET_SIZE.every(1_000)} to reset before each
+         * key's event 1,001, or {@link ResetPolicy#ON_TOMBSTONE} for events implementing
+         * {@link Tombstone}. Policy type requirements are checked when attaching to a
+         * stream. Custom callbacks can use {@link MembershipControl#clearCurrentKey()}.
+         *
+         * @param hook serializable synchronous callback; do not retain its control handle
+         * @return this builder, with the callback appended
+         * @throws NullPointerException if hook is null
+         * @throws IllegalArgumentException if BATCH_RESET_SIZE has no event count
+         */
+        public Builder<T> beforeLookup(BeforeLookup<? super T> hook) {
+            Objects.requireNonNull(hook, "hook");
+            if (hook == ResetPolicy.BATCH_RESET_SIZE) {
+                throw new IllegalArgumentException("Configure BATCH_RESET_SIZE.every(events) before registering it");
+            }
+            beforeLookup.add(hook);
             return this;
         }
 
