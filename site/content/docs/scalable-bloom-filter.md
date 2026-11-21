@@ -67,11 +67,38 @@ A factor of 4 usually produces fewer layers, with larger allocation jumps and mo
 
 `estimatedFalsePositiveProbability()` uses slice occupancy to estimate the whole-filter rate. It is **not a measured false-positive rate**. The probability model assumes uniform, independent probes; our deterministic hash mixing does not establish a guarantee for arbitrary or adversarial inputs. Measure representative absent values when accuracy matters.
 
+## Inspect and Snapshot Layers
+
+```java
+var layers = members.layers(); // read-only live view, oldest layer first
+for (var layer : layers) {
+    System.out.println(layer.index() + ": " + layer.bitSize() + " bits");
+}
+
+byte[] metadata = members.snapshotMetadata();
+var snapshots = layers.stream().map(ScalableBloomFilter.Layer::snapshot).toList();
+var restored = ScalableBloomFilter.restoreStrings(metadata, snapshots);
+```
+
+The layer view exposes inspection and snapshots without allowing callers to
+change bits or remove layers. A partitioned layer is not a standalone fixed
+`BloomFilter`. Snapshot bytes are independent copies: changing or discarding
+them cannot change the filter. Capture metadata and its ordered layers without
+concurrent mutations. Restore requires exactly the referenced layer sequence.
+
+Snapshots carry versioned configuration, hashing/encoding mode, and checksums.
+Restoration rebuilds occupancy counters so the filter can continue growing.
+Byte-encoded filters use `restore(metadata, layers, encoder)`; supply the same
+encoding semantics, since callbacks and input values are never serialized.
+The library produces bytes; your application owns storage and atomic publication.
+The [Flink adapter](@/docs/flink.md#recover-membership-with-managed-state) uses
+these snapshots to persist only dirty layers at checkpoint boundaries.
+
 ## Lifecycle and Limits
 
 - Accepted values remain discoverable with consistent encoding and properly synchronized access.
 - Shared instances need external synchronization, including concurrent queries, because hashing workspace is reused.
-- Memory grows with the set. There is no TTL, eviction, removal, persistence, merge, or fixed total memory ceiling.
+- Memory grows with the set. There is no TTL, eviction, removal, automatic persistence, merge, or fixed total memory ceiling.
 - `bitSize()` excludes object headers, per-slice counters and scratch space, and hashing workspace.
 - Each layer is limited to `Integer.MAX_VALUE` logical bits. Unsupported initial sizing throws `IllegalArgumentException`; growth beyond that limit throws `IllegalStateException` before changing membership. Available heap may impose an earlier limit.
 

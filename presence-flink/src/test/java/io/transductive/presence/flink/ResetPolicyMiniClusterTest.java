@@ -19,7 +19,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @SuppressWarnings("try")
 class ResetPolicyMiniClusterTest {
@@ -32,9 +32,9 @@ class ResetPolicyMiniClusterTest {
                     .build());
 
     @ParameterizedTest
-    @ValueSource(booleans = {false, true})
+    @CsvSource({"false,HEAP", "true,HEAP", "false,MANAGED_STATE", "true,MANAGED_STATE"})
     @Timeout(90)
-    void serializesAndCombinesCannedAndCustomHooksAcrossParallelKeys(boolean scalable) throws Exception {
+    void serializesAndCombinesCannedAndCustomHooksAcrossParallelKeys(boolean scalable, BloomBackend backend) throws Exception {
         try (var environment = StreamExecutionEnvironment.getExecutionEnvironment()) {
             environment.configure(new Configuration().set(PipelineOptions.GENERIC_TYPES, false));
             environment.setRuntimeMode(RuntimeExecutionMode.STREAMING);
@@ -53,6 +53,7 @@ class ResetPolicyMiniClusterTest {
             }
 
             var builder = BloomDeduplicator.<Event>by(Event::id)
+                    .backend(backend)
                     .beforeLookup(ResetPolicy.BATCH_RESET_SIZE.every(3))
                     .beforeLookup(ResetPolicy.ON_TOMBSTONE)
                     .beforeLookup((event, membership) -> {

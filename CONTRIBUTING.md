@@ -47,6 +47,10 @@ live in `gradle/library-conventions.gradle.kts`. Use `mise run build:all` for bo
 libraries, `mise run flink:test` for adapter tests, and `mise run flink:integration`
 for the local parallel Flink job. CI runs both libraries' unit tests and a separate
 Flink compatibility job. Integration tests do not require Docker, Kafka, or S3.
+RocksDB JNI recovery cases run on Linux; Windows and macOS skip those native cases
+and verify recovery with Flink's managed heap backend. Use local `act` to exercise
+Linux RocksDB from another OS. The integration suite includes a deliberate job
+failure after a completed checkpoint, followed by restored membership checks.
 
 The root Gradle project is named `presence-build` so it has a distinct component
 identity from `:presence`. The published coordinates stay `io.transductive:presence`

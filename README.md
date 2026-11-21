@@ -17,7 +17,7 @@ The core library lives in `presence/`. The optional
 and adds keyed Java DataStream duplicate handling for Flink 2.x. Core consumers
 do not acquire Flink dependencies. Both modules use the root Gradle wrapper and mise setup.
 See the [Flink field guide](https://transductive.github.io/presence/docs/flink/)
-for configuration, membership results, and HEAP lifetime.
+for configuration, membership results, reset hooks, and managed-state recovery.
 
 ## A First Look
 
@@ -64,7 +64,7 @@ growth settings, probability budgeting, and operational limits.
 | Murmur3, rapidhash v3 / Nano, Komihash, and SHA-256 strategies | Available |
 | Counting Bloom filter | Proposed |
 | Scalable Bloom filter with a shared false-positive budget | Available |
-| Keyed Java DataStream integration for Flink 2.x, with HEAP storage | Available in the source snapshot |
+| Keyed Java DataStream integration for Flink 2.x, with heap lookups and optional managed-state recovery | Available in the source snapshot |
 | Filter serialization and restoration | Proposed |
 | JMH lookup/construction timing, allocation, and HTML flamegraphs | Available |
 | Hot/broad absent-query benchmarks and exact downstream verification | Available |

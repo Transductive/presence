@@ -2,6 +2,7 @@ package io.transductive.presence.flink;
 
 /**
  * Controls the current stream key's heap membership during a before-lookup callback.
+ * In managed mode, resets and counters are included in the next checkpoint.
  * This handle is valid only while that record's callbacks run, on the operator
  * thread. Do not retain it or use it asynchronously. It cannot address other keys.
  */

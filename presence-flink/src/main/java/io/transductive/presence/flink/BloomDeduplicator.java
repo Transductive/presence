@@ -30,7 +30,11 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
  * membership before an event. Without hooks, there is no automatic reset.
  * HEAP membership has no TTL or window lifecycle, grows with active groups,
  * and is lost on restart, restore, or rescaling. Checkpointing other operators
- * does not checkpoint this membership. This operator does not provide an
+ * does not checkpoint HEAP membership. {@link BloomBackend#MANAGED_STATE} keeps
+ * lookups on heap and flushes changed layers and counters into keyed state before
+ * snapshots. It lazily reconstructs each key after restore; resident membership
+ * must still fit in heap. Recovery requires a completed checkpoint/savepoint.
+ * This operator does not provide an
  * end-to-end delivery guarantee or latest-event-time selection.
  *
  * @param <T> the stream record type
@@ -67,7 +71,7 @@ public final class BloomDeduplicator<T> implements Serializable {
 
     /**
      * Attaches duplicate handling to a keyed stream, preserving its record type.
-     * Configure checkpointing before this call for the startup diagnostic. If
+     * In HEAP mode, configure checkpointing before this call for the startup diagnostic. If
      * enabled later, the first actual checkpoint also triggers a warning.
      *
      * <p>A handler returning {@link Decision#FORWARD_WITH_MEMBERSHIP} fails the
@@ -83,8 +87,12 @@ public final class BloomDeduplicator<T> implements Serializable {
         Objects.requireNonNull(stream, "stream");
         validateHooks(stream);
         var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
-        return stream.process(new HeapBloomProcessFunction<>(idSelector, handler, configuration,
-                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.records(), beforeLookup), stream.getType())
+        var function = new HeapBloomProcessFunction<K, T, T>(idSelector, handler, configuration,
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.records(), beforeLookup);
+        if (configuration.backend() == BloomBackend.MANAGED_STATE) {
+            return stream.transform("Presence Bloom Deduplicator", stream.getType(), new TieredBloomOperator<>(function));
+        }
+        return stream.process(function, stream.getType())
                 .name("Presence Bloom Deduplicator");
     }
 
@@ -104,8 +112,8 @@ public final class BloomDeduplicator<T> implements Serializable {
      * Records and event timestamps are preserved. The result wraps the incoming
      * record without copying it; normal Flink object-reuse rules still apply.
      *
-     * <p>Configure checkpointing before this call for the startup diagnostic.
-     * HEAP lifetime and checkpoint behavior are the same as {@link #applyTo}.
+     * <p>In HEAP mode, configure checkpointing before this call for the startup diagnostic.
+     * Both backends have the same lifetime and checkpoint behavior as {@link #applyTo}.
      *
      * @param stream a stream grouped by tenant, shard, or another membership scope
      * @param <K> stream group key type
@@ -117,8 +125,12 @@ public final class BloomDeduplicator<T> implements Serializable {
         validateHooks(stream);
         var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
         var outputType = MembershipResult.typeInformation(stream.getType());
-        return stream.process(new HeapBloomProcessFunction<>(idSelector, handler, configuration,
-                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.withMembership(), beforeLookup), outputType)
+        var function = new HeapBloomProcessFunction<K, T, MembershipResult<T>>(idSelector, handler, configuration,
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.withMembership(), beforeLookup);
+        if (configuration.backend() == BloomBackend.MANAGED_STATE) {
+            return stream.transform("Presence Bloom Deduplicator With Membership", outputType, new TieredBloomOperator<>(function));
+        }
+        return stream.process(function, outputType)
                 .name("Presence Bloom Deduplicator With Membership");
     }
 
@@ -198,7 +210,7 @@ public final class BloomDeduplicator<T> implements Serializable {
         }
 
         /**
-         * Chooses membership storage ownership; this release supports HEAP only.
+         * Chooses recovery ownership. Both modes perform membership checks on heap.
          * @param backend non-null backend, independent of Flink's state backend
          * @return this builder
          */

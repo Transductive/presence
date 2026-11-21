@@ -18,6 +18,7 @@ dependencies {
     testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion")
     testImplementation("org.apache.flink:flink-runtime:$flinkVersion:tests")
     testImplementation("org.apache.flink:flink-test-utils:$flinkVersion")
+    testImplementation("org.apache.flink:flink-statebackend-rocksdb:$flinkVersion")
     // Log4j's published class annotations must be present under -Xlint:all -Werror.
     testCompileOnly("biz.aQute.bnd:biz.aQute.bnd.annotation:7.0.0")
     testImplementation(platform(libs.junit.bom))

@@ -118,12 +118,61 @@ task when that decision is encountered.
 | `.fixed(expectedInsertions)` | Fixed-size storage; overfilling raises false positives |
 | `.falsePositiveProbability(0.01)` | Default 1% target; scalable filters budget it across all layers |
 | `.hashingStrategy(strategy)` | Core hashing strategy; defaults to Murmur3 |
-| `.backend(BloomBackend.HEAP)` | Operator-owned memory, the only supported backend |
+| `.backend(BloomBackend.HEAP)` | Default: heap membership excluded from checkpoints |
+| `.backend(BloomBackend.MANAGED_STATE)` | Heap lookups with checkpointed layers and counters |
 
 Capacity is per group, not per job or parallel task. More groups allocate more
 filters; scalable layers can also grow. There is no global memory cap or eviction.
 Building the configuration allocates no Bloom arrays. Filter sizing limits are
 checked when a group's filter is created.
+
+## Recover Membership with Managed State
+
+```java
+environment.enableCheckpointing(10_000);
+
+var output = BloomDeduplicator.<Event>by(Event::eventId)
+    .scalable(1_000)
+    .backend(BloomBackend.MANAGED_STATE)
+    .onPossibleDuplicate(event -> Decision.DROP)
+    .build()
+    .applyTo(events.keyBy(Event::tenantId))
+    .uid("tenant-event-membership");
+```
+
+Both modes query and mutate the Bloom on heap. `MANAGED_STATE` adds a recovery
+copy: each Flink key owns a `MapState<Integer, byte[]>` from layer index to
+serialized layer. A small `ValueState<byte[]>` manifest records configuration,
+layer count, and the per-key event counter. Fixed filters use one layer. The
+application still chooses Flink's state backend and checkpoint storage.
+
+Mutations mark layers dirty, coalescing many inserts into one pending write.
+Before each checkpoint snapshot, the operator flushes changed layers for every
+dirty key on the operator thread. Duplicate-only traffic writes the counter
+manifest without rewriting layer bytes. A reset removes obsolete saved layers
+and persists the replacement filter and counter in that checkpoint.
+
+After recovery, a key's saved Bloom is loaded once on its first event, before
+callbacks run. Warm lookups perform no backend reads. Keys not yet accessed stay
+in managed state without heap allocation. Rescaling redistributes keyed state,
+and the new owners reconstruct heap membership as needed.
+
+Enable checkpoints, retain a stable operator UID, and use replayable inputs for
+Flink recovery. Durability comes from a **completed checkpoint/savepoint**, not
+from a backend put or a shutdown hook. Heap and backend may differ between
+checkpoints; the snapshot boundary synchronizes them. Restoring an earlier
+checkpoint intentionally restores its earlier membership and reset counter.
+
+Keep key and ID semantics stable. Changing filter type, capacity, probability,
+or hashing strategy is rejected when restored membership is first loaded.
+Snapshots use versioned formats; unsupported/corrupt payloads fail restoration.
+Automatic state migration is not implemented.
+
+All resident membership must still fit in JVM heap. This adds backend storage
+and checkpoint work, with no eviction or overflow tier. Changed layers are
+written in full, so a large dirty layer can increase synchronous checkpoint
+latency. Persistence preserves Bloom membership; it does not eliminate false
+positives or turn approximate duplicate suppression into an exact guarantee.
 
 ## Reset Membership Explicitly
 
@@ -207,8 +256,8 @@ fail the task.
 
 A reset makes the old filter and all its layers eligible for garbage collection.
 It does not force garbage collection or impose a global memory limit. Old IDs
-can pass again, and idle groups are not evicted. Resets and counters belong to
-the current HEAP lifetime and are lost on restart or restore.
+can pass again, and idle groups are not evicted. `HEAP` loses membership and
+counters on restart; `MANAGED_STATE` restores both from the selected checkpoint.
 
 ## Understand Recovery and Lifetime
 
@@ -217,14 +266,15 @@ savepoints**. Restart, restore, and rescaling start with empty membership, so
 previously seen IDs can be forwarded again. Configuring RocksDB, managed heap
 state, or durable checkpoint storage does not change that behavior.
 
-When checkpointing is enabled, the operator warns and continues. Configure
+With `HEAP` and checkpointing enabled, the operator warns and continues. Configure
 checkpointing before attaching it for the startup warning. If enabled later,
 the first checkpoint triggers the warning instead; restore also warns.
 
 The operator retains copied group keys and Bloom bits, not incoming events or
-event IDs. Membership lasts until a hook resets its key or the task closes. There is no TTL or window
+event IDs. Heap membership lasts until a hook resets its key or the task closes.
+`MANAGED_STATE` can rebuild it from a checkpoint. There is no TTL or window
 cleanup; placing this operator before or after a window does not make its heap
-expire. Managed state and reference-set loading are outside this first version.
+expire. Reference-set loading is outside this version.
 
 This operator does not enforce a delivery guarantee or select the event with
 the largest timestamp per key. Use exact verification when a possible duplicate
@@ -236,6 +286,13 @@ Metrics under `presence` report `possibleDuplicates`, `forwarded`, `dropped`,
 `bloomGroups`, and `membershipResets`. The reset counter counts existing groups
 removed by hooks; clearing an absent group does not increment it. A
 possible-duplicate count includes false positives.
+
+Managed mode adds `stateLayerReads`, `stateLayerWrites`, and
+`stateLayerBytesWritten`. They count restored layer loads and successful backend
+layer writes (including retries), excluding manifests and backend overhead.
+They are not counts of durable checkpoints. `bloomGroups` counts heap-resident
+keys, excluding restored keys not yet accessed. Metrics restart per task attempt;
+the per-key batch-reset counter is separately persisted.
 
 ```sh
 mise run flink:build
@@ -251,6 +308,12 @@ object reuse, and network serialization of membership results. Open the root
 Gradle project in IntelliJ IDEA and run the same tests from the gutter.
 Reset-policy tests also exercise custom/canned hook composition, per-tenant
 batch boundaries, tombstone validation, and heap/counter reset semantics.
+Managed-state tests check dirty-layer writes, write retries, reset recovery,
+aborted checkpoints, and rescaling in both directions. A recovery MiniCluster job
+fails after a completed checkpoint and verifies membership after restarting.
+RocksDB JNI cases run on Linux, including local `act`; other platforms skip those
+native cases while running managed-heap recovery tests. No Flink or RocksDB
+dependencies are added to the browser playground.
 
 The library compiles against Flink 2.0.0; CI tests runtimes 2.0.0 and 2.3.0 on
 Java 21. Other 2.x versions are not individually verified. Flink's

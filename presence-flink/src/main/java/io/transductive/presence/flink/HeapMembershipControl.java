@@ -5,11 +5,11 @@ import org.apache.flink.metrics.Counter;
 /** A record-scoped handle; closing it releases all references to task membership and the key. */
 final class HeapMembershipControl<K> implements MembershipControl, AutoCloseable {
     private Thread owner = Thread.currentThread();
-    private HeapBloomIndex<K> index;
+    private BloomIndex<K> index;
     private K key;
     private Counter resets;
 
-    HeapMembershipControl(HeapBloomIndex<K> index, K key, Counter resets) {
+    HeapMembershipControl(BloomIndex<K> index, K key, Counter resets) {
         this.index = index;
         this.key = key;
         this.resets = resets;

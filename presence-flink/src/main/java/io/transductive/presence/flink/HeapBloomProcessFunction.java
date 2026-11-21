@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Uses checkpoint callbacks only for diagnostics; it never registers managed state.
+ * Executes membership and callbacks on heap; a tiered operator optionally coordinates persistence.
  * @param <K> stream group key type
  * @param <T> stream record type
  * @param <OUT> forwarded record type
@@ -34,7 +34,8 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     private final CheckpointAwareness checkpoints;
     private final Output<T, OUT> output;
     private final ArrayList<BeforeLookup<? super T>> beforeLookup;
-    private transient HeapBloomIndex<K> index;
+    private transient BloomIndex<K> index;
+    private transient TieredBloomIndex.Store<K> managedStore;
     private transient Counter possibleDuplicates;
     private transient Counter forwarded;
     private transient Counter dropped;
@@ -77,19 +78,23 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     @Override
     public void open(OpenContext context) {
         var serializer = getRuntimeContext().createSerializer(keyType);
-        index = new HeapBloomIndex<>(configuration, serializer::copy);
         var metrics = getRuntimeContext().getMetricGroup().addGroup("presence");
+        index = configuration.backend() == BloomBackend.MANAGED_STATE
+                ? new TieredBloomIndex<>(configuration, serializer::copy,
+                        Objects.requireNonNull(managedStore, "MANAGED_STATE requires the tiered operator"), restored, metrics)
+                : new HeapBloomIndex<>(configuration, serializer::copy);
         possibleDuplicates = metrics.counter("possibleDuplicates");
         forwarded = metrics.counter("forwarded");
         dropped = metrics.counter("dropped");
         membershipResets = metrics.counter("membershipResets");
         metrics.gauge("bloomGroups", index::groupCount);
-        if (checkpoints.enabled() || restored) warnOnce();
+        if (configuration.backend() == BloomBackend.HEAP && (checkpoints.enabled() || restored)) warnOnce();
     }
 
     @Override
     public void processElement(T event, Context context, Collector<OUT> collector) throws Exception {
         String id = Objects.requireNonNull(idSelector.getKey(event), "Membership ID must not be null");
+        index.prepare(context.getCurrentKey());
         if (!beforeLookup.isEmpty()) {
             try (var membership = new HeapMembershipControl<>(index, context.getCurrentKey(), membershipResets)) {
                 for (var hook : beforeLookup) hook.beforeLookup(event, membership);
@@ -114,13 +119,19 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     @Override
     public void initializeState(FunctionInitializationContext context) {
         restored = context.isRestored();
-        // Intentionally do not request keyed or operator state for the HEAP backend.
+        // The tiered operator registers keyed state; HEAP intentionally registers none.
     }
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) {
         // Covers checkpointing enabled after applyTo(), including cluster-side settings.
-        warnOnce();
+        if (configuration.backend() == BloomBackend.HEAP) warnOnce();
+    }
+
+    void setManagedStore(TieredBloomIndex.Store<K> store) { managedStore = store; }
+
+    void flushManagedState() throws Exception {
+        if (index instanceof TieredBloomIndex<?> tiered) tiered.flush();
     }
 
     private void warnOnce() {
