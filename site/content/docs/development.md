@@ -1,7 +1,7 @@
 +++
 title = "Develop & Contribute"
 description = "One tool setup across Windows, macOS, and Linux."
-weight = 6
+weight = 7
 +++
 
 Mise owns the developer commands and tool versions. Gradle owns compilation, tests, packaging, and reproducible build outputs.
@@ -42,7 +42,9 @@ workflow against your working tree, compiling and packaging both libraries and
 running their unit tests. The separate Flink compatibility job can be exercised
 with `mise run flink:integration`. Benchmark compilation, fixture tests, and timed runs
 are excluded from regular builds and CI; `mise run benchmark:check` runs the
-fixture checks manually. Website verification runs in the separate Pages workflow.
+fixture checks manually. A separate documentation CI job verifies guides, both
+API references, and core playground assets on pull requests. The Pages workflow
+rechecks the same site before deployment from `main`.
 Its Ubuntu 26.04 amd64 image uses emulation on Apple Silicon. GitHub still checks
 the Windows and macOS jobs and performs Pages deployment. Local containers are
 an approximation of hosted runners; act does not reproduce GitHub's permissions,
@@ -78,7 +80,7 @@ DataStream operators. Both modules share the root wrapper and mise setup.
 `mise run build` and `mise run test` target core; `mise run build:all` builds both.
 Use `mise run flink:test` for adapter unit tests and `mise run flink:integration`
 for a local parallel Flink job. See the
-[Flink module guide](https://github.com/Transductive/presence/blob/main/presence-flink/README.md)
+[Flink guide](@/docs/flink.md)
 for membership scopes and heap/checkpoint semantics.
 
 Start a contribution with a concrete use case and a reproducible test. Changes to hashing need reference vectors and membership correctness checks; performance claims need measurements and their parameters.

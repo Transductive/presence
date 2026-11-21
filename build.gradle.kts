@@ -55,6 +55,19 @@ val coreJarFiles = configurations.create("coreJarFiles") {
 }
 dependencies { add(coreJarFiles.name, project(":presence")) }
 val libraryJar = layout.file(providers.provider { coreJarFiles.singleFile })
+
+// Consume generated API documentation as an artifact, independent of source/build paths.
+// These HTML files do not add Flink runtime JARs to the browser playground.
+val flinkJavadocFiles = configurations.create("flinkJavadocFiles") {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    isTransitive = false
+    attributes {
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+        attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.JAVADOC))
+    }
+}
+dependencies { add(flinkJavadocFiles.name, project(":presence-flink")) }
 val benchmarkLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
 
 // Website tools stay outside the library and benchmark dependency graphs.
@@ -162,6 +175,17 @@ val siteBuild = tasks.register<Sync>("siteBuild") {
             filter { line: String ->
                 if (line.trim() == "@import url('resources/fonts/dejavu.css');")
                     "/* Font styling is supplied by Presence's api-theme.css. */" else line
+            }
+        }
+    }
+    dependsOn(flinkJavadocFiles)
+    from(providers.provider { zipTree(flinkJavadocFiles.singleFile) }) {
+        into("api/flink")
+        exclude("META-INF/**")
+        filesMatching("stylesheet.css") {
+            filter { line: String ->
+                if (line.trim() == "@import url('resources/fonts/dejavu.css');")
+                    "/* Use the Javadoc system font fallback. */" else line
             }
         }
     }

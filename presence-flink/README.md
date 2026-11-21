@@ -5,6 +5,11 @@ Uses the established DataStream API. Java 21 is required by Presence; configure
 the Flink runtime to use Java 21 too. The separate experimental DataStream API V2,
 Table/SQL, and Python APIs are outside this module.
 
+Read the [Flink field guide](https://transductive.github.io/presence/docs/flink/)
+and [API reference](https://transductive.github.io/presence/api/flink/index.html).
+Flink examples run in a JVM; the website's browser playground is for core filters
+and does not load Flink dependencies.
+
 ## Make a Membership Decision
 
 ```java
@@ -39,8 +44,8 @@ the callback, which chooses `DROP`, `FORWARD`, or `FORWARD_WITH_MEMBERSHIP`.
 The callback is mandatory; there is no implicit dropping policy. `DROP` accepts
 that false positives can discard genuinely new records. Both forwarding decisions
 also forward actual repeats. No decision means the event has been delivered to a
-sink. This is not an at-most-once or
-exactly-once delivery guarantee, nor latest-event-time selection.
+sink. This is not an at-most-once or exactly-once delivery guarantee, nor
+latest-event-time selection.
 
 The callback runs synchronously on the operator thread. Keep it quick, do not
 mutate the record, and do not capture non-serializable objects such as a live
@@ -48,7 +53,7 @@ database client. Callback failures fail the task; null decisions and null IDs
 are errors. This version accepts string event IDs with the core library's UTF-8
 semantics. It does not implicitly use `toString()` to encode arbitrary IDs.
 
-## Forward With Membership
+## Forward with Membership
 
 Use `FORWARD_WITH_MEMBERSHIP` and `applyToWithMembership` when downstream code
 needs the observation alongside the original event:
@@ -127,8 +132,8 @@ are not implemented here.
 ## Checkpoint Awareness
 
 Configure Flink checkpointing **before** `applyTo` or `applyToWithMembership` for
-a startup warning. When checkpointing is enabled, each operator instance warns that HEAP membership
-is excluded from checkpoints and savepoints. S3, filesystem, and JobManager
+a startup warning. When checkpointing is enabled, each operator instance warns
+that HEAP membership is excluded from checkpoints and savepoints. S3, filesystem, and JobManager
 checkpoint storage all have the same limitation. The configured Flink state
 backend is independent of both the checkpoint destination and our HEAP choice.
 
@@ -173,6 +178,31 @@ in `io.transductive:presence` transitively. Flink itself is supplied by the job
 or cluster and is not a transitive dependency of the published integration.
 Maven consumers likewise declare Flink with `provided` scope. Package both
 Presence JARs with your job; never bundle Flink's runtime into the job JAR.
+
+For Maven, run the same `mise run publish:local` command first, then declare:
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>io.transductive</groupId>
+    <artifactId>presence-flink</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </dependency>
+  <dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-streaming-java</artifactId>
+    <version>2.0.0</version>
+    <scope>provided</scope>
+  </dependency>
+</dependencies>
+```
+
+`compileOnly`/`provided` dependencies do not supply a standalone local runtime.
+When launching your own job from the IDE, include the matching Flink runtime
+(including `flink-clients`) in that launch's classpath. The repository's tests
+already supply their local runtime through test-only dependencies.
+See Flink's [project setup guide](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/configuration/overview/)
+for the runtime and packaging requirements.
 
 ## Develop and Verify
 

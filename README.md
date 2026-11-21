@@ -16,6 +16,8 @@ The core library lives in `presence/`. The optional
 [Presence Flink integration](presence-flink/README.md) lives in `presence-flink/`
 and adds keyed Java DataStream duplicate handling for Flink 2.x. Core consumers
 do not acquire Flink dependencies. Both modules use the root Gradle wrapper and mise setup.
+See the [Flink field guide](https://transductive.github.io/presence/docs/flink/)
+for configuration, membership results, and HEAP lifetime.
 
 ## A First Look
 

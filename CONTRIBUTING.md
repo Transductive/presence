@@ -48,6 +48,15 @@ libraries, `mise run flink:test` for adapter tests, and `mise run flink:integrat
 for the local parallel Flink job. CI runs both libraries' unit tests and a separate
 Flink compatibility job. Integration tests do not require Docker, Kafka, or S3.
 
+The root Gradle project is named `presence-build` so it has a distinct component
+identity from `:presence`. The published coordinates stay `io.transductive:presence`
+and `io.transductive:presence-flink`. Do not give the coordinator the core module's
+name: dependency resolution can otherwise select the disabled root JAR.
+
+CI also runs `mise run site:check` in a separate documentation job on pull
+requests. It verifies the guides, both API references, and the core-only playground.
+Pages repeats that check before publishing from `main`.
+
 Document public APIs with Javadoc, including null handling, probabilistic
 semantics, and thread-safety constraints. Compiler and Javadoc warnings fail the
 build. Follow `.editorconfig` and avoid committing generated files or local IDE
