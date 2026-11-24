@@ -1,0 +1,71 @@
+fullnameOverride: presence-collector
+mode: deployment
+replicaCount: 1
+image:
+  repository: otel/opentelemetry-collector-contrib
+command:
+  name: otelcol-contrib
+service:
+  type: NodePort
+ports:
+  otlp:
+    enabled: true
+    nodePort: 30417
+  otlp-http:
+    enabled: true
+    nodePort: 30418
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+  metrics:
+    enabled: false
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: "1"
+    memory: 256Mi
+alternateConfig:
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 192
+      spike_limit_mib: 48
+    # Flink's OTel reporter sends counter deltas. Preserve counter/rate semantics
+    # in VictoriaMetrics; already-cumulative standalone metrics pass through.
+    deltatocumulative:
+      max_stale: 5m
+    batch:
+      timeout: 1s
+      send_batch_size: 1024
+  exporters:
+    otlp_http/victoriametrics:
+      metrics_endpoint: http://presence-vm-server:8428/opentelemetry/v1/metrics
+      compression: gzip
+      sending_queue:
+        queue_size: 100
+      retry_on_failure:
+        max_elapsed_time: 30s
+  service:
+    extensions: [health_check]
+    pipelines:
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, deltatocumulative, batch]
+        exporters: [otlp_http/victoriametrics]

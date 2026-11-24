@@ -43,6 +43,13 @@ final class HeapBloomIndex<K> implements BloomIndex<K> {
     @Override public int groupCount() { return groupCount; }
 
     @Override
+    public BloomStatistics statistics() {
+        var accumulator = new BloomStatistics.Accumulator();
+        for (BloomGroup group : filters.values()) accumulator.add(group);
+        return accumulator.snapshot();
+    }
+
+    @Override
     public void clear() {
         filters.clear();
         groupCount = 0;

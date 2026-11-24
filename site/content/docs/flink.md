@@ -403,6 +403,102 @@ They are not counts of durable checkpoints. **`bloomGroups`** counts
 not count layers or Flink **[key groups][flink-key-groups]**. Metrics restart per
 task attempt; the per-key batch-reset counter is separately persisted.
 
+### Enable Detailed Bloom Metrics
+
+```java
+var deduplicator = BloomDeduplicator.<Event>by(Event::eventId)
+    .scalable(1_000)
+    .backend(BloomBackend.MANAGED_STATE)
+    .metrics(BloomMetrics.DETAILED)
+    .metricsRefreshInterval(Duration.ofSeconds(30))
+    .onPossibleDuplicate(event -> Decision.DROP)
+    .build();
+```
+
+Import **[`BloomMetrics`]({{ get_url(path="api/flink/io/transductive/presence/flink/BloomMetrics.html") }})** from `io.transductive.presence.flink`
+and `Duration` from `java.time`. **BASIC** is the default and keeps the existing
+metrics without a statistics clock check. **DETAILED** works with both backends,
+fixed or scalable membership, and both output modes. The interval defaults to
+30 seconds; configuring an interval alone does not enable detailed metrics.
+
+The **[operator metric group](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/ops/metrics/)**
+adds gauges under `presence.statistics`. Each **operator subtask** aggregates
+its **heap-resident stream keys**; there are no tenant labels or SDK wrappers
+per key. Series count follows **operator parallelism**, while the cost of
+sampling follows resident keys and their filters.
+
+| Gauge | Scope and Meaning |
+| --- | --- |
+| `bloomGroups` | Resident per-key filters included in the cached sample; `presence.bloomGroups` remains live |
+| `layers` | Total layers across sampled filters |
+| `bitArrayBytes` | Total bit-array payload including word rounding; excludes keys, object headers, maps, workspaces, and telemetry |
+| `estimatedElements` | Sum of occupancy-based membership estimates across keys, not a global distinct count |
+| `maximumActiveLayerFillRatio` | Maximum fixed fill or scalable active-layer slice fill |
+| `maximumEstimatedFalsePositiveProbability` | Worst estimated per-filter FPP; not measured false positives |
+| `refreshCount` | Completed samples in this task attempt |
+| `lastRefreshDurationNanos` | Time computing the latest sample; excludes publication and export |
+
+Values start at zero for the empty resident index. The first successful record
+after the interval, including a dropped duplicate, triggers a refresh. Idle
+subtasks retain their cached sample. **Reporter callbacks only read immutable,
+safely published values**; they never scan live filters or read managed state.
+Untouched restored keys are excluded until their normal first access loads them.
+Changing metrics configuration does not change membership checkpoint compatibility.
+
+**A refresh delays record processing synchronously.** It visits every resident
+filter on the operator thread. Fixed Bloom currently scans each array three
+times; `ScalableBloomFilter` uses layer/slice counters. A longer interval reduces
+frequency, not the pause on that particular record. Other sampling approaches
+are future work. Watch `lastRefreshDurationNanos` as resident cardinality grows.
+
+For manual control, a `beforeLookup` callback can call
+**`membership.refreshStatistics()`** after an application-defined trigger.
+It requires DETAILED, samples the entire subtask before the current lookup, and
+restarts the automatic interval. The control remains valid only during that
+callback on the owning thread; it cannot be handed to a background executor.
+
+Export using Flink's **[OpenTelemetry or Prometheus metric reporter](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/deployment/metric_reporters/)**.
+For standalone filters outside Flink, use the optional
+[Presence OpenTelemetry wrapper](@/docs/observability.md) instead. Flink jobs do
+not need that wrapper to export the operator's native metrics.
+No Presence-owned SDK or exporter runs inside the operator. Flink 2.0's OTel
+reporter uses OTLP gRPC; a host-local Flink runtime can target the smoke
+collector at `http://127.0.0.1:4317`. See the
+[module guide](https://github.com/Transductive/presence/tree/main/presence-flink#export-through-flink)
+for configuration. A faster exporter cadence does not make the cached
+statistics fresher.
+
+### Watch Flink Metrics Locally
+
+```sh
+mise run telemetry:flink
+mise run telemetry:flink -- --minutes 5
+mise run telemetry:flink:rocksdb
+```
+
+With Docker running Linux containers, this starts the local telemetry stack and
+prints a live **Presence Flink** Grafana link before running a one-minute workload.
+An embedded **MiniCluster** runs one **JobManager** and one **TaskManager** with
+two slots. Four branches compare fixed/scalable and **HEAP**/**MANAGED_STATE**,
+each at parallelism two, across 16 keys with initial capacity 1,000 per key.
+Fresh IDs, repeats, and tombstones exercise membership and reset paths.
+
+Statistics and OTLP export refresh every second. Local filesystem checkpoints
+run every two seconds using Flink's `HashMapStateBackend`; this smoke exercises
+checkpoint writes, not failure recovery. The RocksDB variant runs in a disposable
+Linux container with incremental checkpoints and native state metrics enabled.
+Presence membership lookups stay on heap in both variants.
+
+The dashboard groups cluster capacity, task flow, memory, decisions, sampling cost,
+state writes, checkpoints, RocksDB memory/storage activity, and the shared JVM.
+Native RocksDB memory sits outside Java heap; shared cache observations are not
+added across operators. HashMap runs show **No data** in RocksDB panels. The MiniCluster
+stops when the workload finishes; Grafana retains the run for review. See the
+[local telemetry guide](https://github.com/Transductive/presence/tree/main/infra/telemetry#flink-smoke)
+for lifecycle commands and metric interpretation.
+
+### Run Flink Checks
+
 ```sh
 mise run flink:build
 mise run flink:test -- --tests '*BloomDeduplicatorMiniClusterTest'

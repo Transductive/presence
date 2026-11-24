@@ -22,6 +22,8 @@ mise run benchmark:misses
 mise run benchmark:prefilter
 mise run benchmark:heap
 mise run benchmark:scalable
+mise run benchmark:otel
+mise run benchmark:otel:smoke
 ```
 
 | Command | Workload | Harness settings |
@@ -34,6 +36,15 @@ mise run benchmark:scalable
 | `benchmark:prefilter` | Direct exact lookup vs. Bloom then exact; all five N; 0% / 50% hits; downstream CPU tokens=0 / 256 | 40 cases, same full timing settings |
 | `benchmark:heap` | Bloom, HashSet, HashMap, and Bloom + HashMap; all five N | Separate JOL object-graph measurement; 2 GiB maximum analysis heap; no timing claims |
 | `benchmark:scalable` | Fixed-size vs. scalable Bloom; Murmur3 and rapidhash; N=1,000 / 10,000 / 100,000; 0% / 100% hits; BROAD queries | 2 forks, 3 × 500 ms warmups, 5 × 500 ms measurements; preliminary local comparison |
+| `benchmark:otel` | Raw, no-op meter, SDK recording, and forced automatic refresh; fixed/scalable; present/absent/repeated put; N=1,000 / 100,000 / 1,000,000 | 72 cases; 2 forks, 3 × 500 ms warmups, 5 × 500 ms measurements |
+| `benchmark:otel:smoke` | Same OTel paths at N=1,000; validates fixtures and report generation | 1 fork, 1 × 100 ms warmup, 1 × 100 ms measurement; not performance evidence |
+
+The [OTel benchmark guide](../presence-otel/README.md#measure-instrumentation-cost)
+explains the forced-clock method and warm-cache refresh limitations. This
+separate harness uses a 512 MiB initial/maximum heap and a registered SDK reader
+without collection or export during timing. Its reports use the actual selected
+sizes, include allocation and confidence errors, and stay local. The ordinary
+`benchmark` and `benchmark:smoke` commands continue to select only the core module.
 
 The focused scalable comparison takes roughly four minutes plus setup. Fixed
 Bloom is sized for the final N; scalable starts at 1,000 for every case and uses

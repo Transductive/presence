@@ -1,7 +1,7 @@
 +++
 title = "Develop & Contribute"
 description = "One tool setup across Windows, macOS, and Linux."
-weight = 7
+weight = 8
 +++
 
 Mise owns the developer commands and tool versions. Gradle owns compilation, tests, packaging, and reproducible build outputs.
@@ -38,11 +38,11 @@ optional for everyday library development and workflow linting.
 Unlike `--list`, act's `--dryrun` also needs a Docker connection.
 
 The local runner lints first, then runs the Ubuntu matrix entry of the build
-workflow against your working tree, compiling and packaging both libraries and
+workflow against your working tree, compiling and packaging all three libraries and
 running their unit tests. The separate Flink compatibility job can be exercised
 with `mise run flink:integration`. Benchmark compilation, fixture tests, and timed runs
 are excluded from regular builds and CI; `mise run benchmark:check` runs the
-fixture checks manually. A separate documentation CI job verifies guides, both
+fixture checks manually. A separate documentation CI job verifies guides, all three
 API references, and core playground assets on pull requests. The Pages workflow
 rechecks the same site before deployment from `main`.
 Its Ubuntu 26.04 amd64 image uses emulation on Apple Silicon. GitHub still checks
@@ -76,12 +76,19 @@ For another deployment address, pass `-PsiteBaseUrl=https://example.com/presence
 Core production code stays in `presence/src/main/java` and uses the Java core library. Benchmarks have their own source set and dependencies. Website tools do not affect the library dependency graph.
 
 The optional `presence-flink/` module owns Flink dependencies and keyed Java
-DataStream operators. Both modules share the root wrapper and mise setup.
-`mise run build` and `mise run test` target core; `mise run build:all` builds both.
+DataStream operators. `presence-otel/` owns the standalone OpenTelemetry wrapper;
+its SDK and exporters belong to the application or local tooling. All three
+modules share the root wrapper and mise setup.
+`mise run build` and `mise run test` target core; `mise run build:all` builds all three.
 Use `mise run flink:test` for adapter unit tests and `mise run flink:integration`
 for a local parallel Flink job. See the
 [Flink guide](@/docs/flink.md)
 for membership scopes and heap/checkpoint semantics.
+
+Use `mise run otel:test` for the telemetry adapter. The
+[observability guide](@/docs/observability.md) explains its metrics and local
+Grafana runs. `mise run benchmark:otel` measures wrapper and statistics-refresh
+costs separately from CI.
 
 Start a contribution with a concrete use case and a reproducible test. Changes to hashing need reference vectors and membership correctness checks; performance claims need measurements and their parameters.
 

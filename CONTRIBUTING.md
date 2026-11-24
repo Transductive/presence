@@ -42,10 +42,18 @@ Add tests for observable behavior and boundary cases; probability
 checks should use deterministic data and generous, explained bounds.
 
 `presence-flink/` owns the Java DataStream integration and its Flink API dependencies.
-The root coordinates both modules and the website; shared Java packaging rules
-live in `gradle/library-conventions.gradle.kts`. Use `mise run build:all` for both
-libraries, `mise run flink:test` for adapter tests, and `mise run flink:integration`
-for the local parallel Flink job. CI runs both libraries' unit tests and a separate
+`presence-otel/` owns the optional OpenTelemetry wrapper and API dependency; the
+SDK belongs only to its tests, local smoke, and benchmark source sets. Use `mise run otel:test`
+for adapter tests. `mise run telemetry:smoke` starts the optional
+[local Grafana/VictoriaMetrics environment](infra/telemetry/README.md).
+Use `mise run telemetry:flink` for the equivalent bounded MiniCluster workload.
+The timed workload and Kubernetes infrastructure never run as part of CI;
+smoke unit tests do (the standalone adapter uses an in-memory SDK reader;
+the Flink smoke checks configuration and workload semantics without starting a cluster).
+The root coordinates all modules and the website; shared Java packaging rules
+live in `gradle/library-conventions.gradle.kts`. Use `mise run build:all` for all
+libraries, `mise run flink:test` for Flink adapter tests, and `mise run flink:integration`
+for the local parallel Flink job. CI runs all libraries' unit tests and a separate
 Flink compatibility job. Integration tests do not require Docker, Kafka, or S3.
 RocksDB JNI recovery cases run on Linux; Windows and macOS skip those native cases
 and verify recovery with Flink's managed heap backend. Use local `act` to exercise
@@ -54,11 +62,12 @@ failure after a completed checkpoint, followed by restored membership checks.
 
 The root Gradle project is named `presence-build` so it has a distinct component
 identity from `:presence`. The published coordinates stay `io.transductive:presence`
-and `io.transductive:presence-flink`. Do not give the coordinator the core module's
+and `io.transductive:presence-flink`; the optional telemetry module publishes as
+`io.transductive:presence-otel`. Do not give the coordinator the core module's
 name: dependency resolution can otherwise select the disabled root JAR.
 
 CI also runs `mise run site:check` in a separate documentation job on pull
-requests. It verifies the guides, both API references, and the core-only playground.
+requests. It verifies the guides, all three API references, and the core-only playground.
 Pages repeats that check before publishing from `main`.
 
 Document public APIs with Javadoc, including null handling, probabilistic
@@ -114,6 +123,14 @@ the harness and verify its fixtures. Regular builds and CI only package the
 libraries and run unit tests, with a separate Flink integration job. Benchmarks remain manual until a dedicated
 comment-triggered workflow is added. See [Benchmarking](docs/benchmarking.md)
 before changing workloads.
+
+The optional adapter has its own harness in `presence-otel/src/benchmark` and
+fixture checks in `presence-otel/src/benchmarkTest`. Use
+`mise run benchmark:otel:smoke` to validate it or `mise run benchmark:otel` to
+measure instrumentation and automatic refresh costs. Both commands verify their
+fixtures first. Keep the registered SDK reader, default-interval steady path,
+and explicit forced-clock methodology; see the
+[adapter benchmark guide](presence-otel/README.md#measure-instrumentation-cost).
 
 Run `mise run benchmark:smoke` after changing the harness. Use
 `mise run benchmark` for comparisons and `mise run benchmark:flamegraph` to

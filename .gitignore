@@ -9,6 +9,7 @@ out/
 .DS_Store
 Thumbs.db
 mise.local.toml
+/.local/
 
 # Optional local act inputs; credentials and machine-specific settings stay local.
 /.secrets

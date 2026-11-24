@@ -7,5 +7,7 @@ interface BloomIndex<K> {
     long eventsSinceReset(K key);
     boolean clear(K key);
     int groupCount();
+    /** Samples only resident heap filters on the owning operator thread; never reads managed state. */
+    BloomStatistics statistics();
     void clear();
 }

@@ -43,9 +43,9 @@ tasks.withType<AbstractArchiveTask>().configureEach {
 
 // The root coordinates builds and website tools; only child projects publish libraries.
 tasks.jar { enabled = false }
-tasks.named("build") { dependsOn(":presence:build", ":presence-flink:build") }
-tasks.named("check") { dependsOn(":presence:check", ":presence-flink:check") }
-tasks.named("clean") { dependsOn(":presence:clean", ":presence-flink:clean") }
+tasks.named("build") { dependsOn(":presence:build", ":presence-flink:build", ":presence-otel:build") }
+tasks.named("check") { dependsOn(":presence:check", ":presence-flink:check", ":presence-otel:check") }
+tasks.named("clean") { dependsOn(":presence:clean", ":presence-flink:clean", ":presence-otel:clean") }
 
 val coreJarFiles = configurations.create("coreJarFiles") {
     isCanBeResolved = true
@@ -57,7 +57,7 @@ dependencies { add(coreJarFiles.name, project(":presence")) }
 val libraryJar = layout.file(providers.provider { coreJarFiles.singleFile })
 
 // Consume generated API documentation as an artifact, independent of source/build paths.
-// These HTML files do not add Flink runtime JARs to the browser playground.
+// These HTML files do not add integration or telemetry JARs to the browser playground.
 val flinkJavadocFiles = configurations.create("flinkJavadocFiles") {
     isCanBeResolved = true
     isCanBeConsumed = false
@@ -68,6 +68,16 @@ val flinkJavadocFiles = configurations.create("flinkJavadocFiles") {
     }
 }
 dependencies { add(flinkJavadocFiles.name, project(":presence-flink")) }
+val otelJavadocFiles = configurations.create("otelJavadocFiles") {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    isTransitive = false
+    attributes {
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+        attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.JAVADOC))
+    }
+}
+dependencies { add(otelJavadocFiles.name, project(":presence-otel")) }
 val benchmarkLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
 
 // Website tools stay outside the library and benchmark dependency graphs.
@@ -178,14 +188,16 @@ val siteBuild = tasks.register<Sync>("siteBuild") {
             }
         }
     }
-    dependsOn(flinkJavadocFiles)
-    from(providers.provider { zipTree(flinkJavadocFiles.singleFile) }) {
-        into("api/flink")
-        exclude("META-INF/**")
-        filesMatching("stylesheet.css") {
-            filter { line: String ->
-                if (line.trim() == "@import url('resources/fonts/dejavu.css');")
-                    "/* Use the Javadoc system font fallback. */" else line
+    for ((path, documentation) in listOf("flink" to flinkJavadocFiles, "otel" to otelJavadocFiles)) {
+        dependsOn(documentation)
+        from(providers.provider { zipTree(documentation.singleFile) }) {
+            into("api/$path")
+            exclude("META-INF/**")
+            filesMatching("stylesheet.css") {
+                filter { line: String ->
+                    if (line.trim() == "@import url('resources/fonts/dejavu.css');")
+                        "/* Use the Javadoc system font fallback. */" else line
+                }
             }
         }
     }

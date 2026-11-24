@@ -1,0 +1,3187 @@
+{
+  "uid": "presence-smoke",
+  "title": "Presence Operations",
+  "description": "A readable operations review: scalable health, fixed/scalable comparisons, workload, JVM generations, collection and buffers.",
+  "tags": [
+    "presence",
+    "local",
+    "smoke"
+  ],
+  "schemaVersion": 39,
+  "version": 4,
+  "editable": false,
+  "timezone": "browser",
+  "refresh": "1s",
+  "timepicker": {
+    "refresh_intervals": ["1s", "5s", "10s", "30s", "1m", "5m"]
+  },
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "run",
+        "label": "Smoke Run",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "presence-vm"
+        },
+        "refresh": 2,
+        "query": {
+          "query": "label_values(presence_bloom_layers{service_name=\"presence-smoke\"}, service_instance_id)",
+          "refId": "runs"
+        },
+        "includeAll": false,
+        "multi": false,
+        "sort": 1
+      },
+      {
+        "name": "heap_pool",
+        "label": "Heap Pools",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "presence-vm"
+        },
+        "refresh": 2,
+        "query": {
+          "query": "label_values(presence_smoke_jvm_memory_pool_used_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",jvm_memory_type=\"heap\"}, jvm_memory_pool_name)",
+          "refId": "heap-pools"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1,
+        "hide": 2,
+        "skipUrlSync": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Presence Operations\nFixed and scalable membership, under the same workload.\n\n**N = 1,000** initial capacity · **1%** sizing target · **1-second** telemetry"
+      }
+    },
+    {
+      "id": 101,
+      "title": "Distinct Input IDs",
+      "description": "Exact generator count, including seeds and excluding repeated puts. Both filters receive the same inputs.",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_distinct_inputs{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "Scalable Bloom at a Glance",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 103,
+      "title": "Reachable Heap",
+      "description": "Scalable core object graph, measured with JOL. Includes headers and shared reachable objects; excludes the SDK. Not exclusive retained heap.",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_filter_reachable_heap_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 104,
+      "title": "Allocated Layers",
+      "description": "Scalable storage layers, including the initial layer.",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 5,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_bloom_layers{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 105,
+      "title": "False-Positive Rate",
+      "description": "Measured cumulative false positives / known-absent probes for scalable. A possible match alone cannot establish a false positive.",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_false_positives_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"}) / clamp_min(sum(presence_smoke_absent_queries_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"}), 1)",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 106,
+      "title": "Active Layer Fill",
+      "description": "Fullest slice in the scalable active layer. Growth occurs before it exceeds 50%.",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 5,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_bloom_active_layer_fill_ratio{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 107,
+      "type": "row",
+      "title": "Membership and Memory",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 108,
+      "title": "Memory Footprint",
+      "description": "Core reachable heap (solid) and bit-array payload (dashed). Shared objects mean reachable sizes are not additive as exclusive retained memory.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_filter_reachable_heap_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Scalable"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(presence_bloom_bit_array_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Scalable Bits"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(presence_smoke_filter_reachable_heap_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "Fixed"
+        },
+        {
+          "refId": "D",
+          "expr": "sum(presence_bloom_bit_array_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "Fixed Bits"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scalable"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fixed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scalable Bits"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fixed Bits"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 109,
+      "title": "Distinct IDs and Estimates",
+      "description": "Known distinct input IDs versus occupancy estimates. Fixed estimates become unreliable near saturation and may be infinite; scalable skips already-possible matches.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_distinct_inputs{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Distinct IDs"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(presence_bloom_elements_estimated{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Scalable Estimate"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(presence_bloom_elements_estimated{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "Fixed Estimate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Distinct IDs"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scalable Estimate"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#777777"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fixed Estimate"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#aaaaaa"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 110,
+      "title": "Layer Growth",
+      "description": "Scalable retains older layers when it allocates a new one. Fixed remains at one.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_bloom_layers{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Scalable"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(presence_bloom_layers{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "Fixed"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scalable"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fixed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 111,
+      "title": "Scalable Fill",
+      "description": "The active layer's fullest slice. Allocation resets the active fill; old membership remains.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 19,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_bloom_active_layer_fill_ratio{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Active Slice"
+        },
+        {
+          "refId": "B",
+          "expr": "vector(0.5)",
+          "legendFormat": "Rollover"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rollover"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#aaaaaa"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 112,
+      "title": "Fixed Fill",
+      "description": "Fraction of logical bits set. At full saturation every query is a possible match.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 19,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_bloom_active_layer_fill_ratio{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "Set Bits"
+        },
+        {
+          "refId": "B",
+          "expr": "vector(1)",
+          "legendFormat": "Saturation"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Set Bits"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#777777"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Saturation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#aaaaaa"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 113,
+      "type": "row",
+      "title": "Lookup Quality",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 114,
+      "title": "Absent Probes per Filter",
+      "description": "Exact count of never-inserted queries, identical for both filters.",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 8,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_absent_queries_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 115,
+      "title": "Scalable False Positives",
+      "description": "Cumulative positive answers for never-inserted IDs; initialized to zero.",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 27,
+        "w": 8,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_false_positives_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 116,
+      "title": "Fixed False Positives",
+      "description": "Cumulative positive answers for never-inserted IDs; initialized to zero.",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 27,
+        "w": 8,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_false_positives_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "fields": "",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        }
+      }
+    },
+    {
+      "id": 117,
+      "title": "Scalable Accuracy",
+      "description": "Measured: cumulative observed false positives. Estimated: uniform-hashing occupancy model. The 1% line is the sizing target. Each chart has its own vertical scale.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_false_positives_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"}) / clamp_min(sum(presence_smoke_absent_queries_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"}), 1)",
+          "legendFormat": "Measured"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(presence_bloom_false_positive_probability_estimated_ratio{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Estimated"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(presence_smoke_false_positive_probability_target_ratio{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"})",
+          "legendFormat": "Sizing Target"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Measured"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Estimated"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#888888"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sizing Target"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 118,
+      "title": "Fixed Accuracy",
+      "description": "Measured: cumulative observed false positives. Estimated: uniform-hashing occupancy model. The 1% line is the sizing target. Each chart has its own vertical scale.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 30,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_false_positives_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"}) / clamp_min(sum(presence_smoke_absent_queries_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"}), 1)",
+          "legendFormat": "Measured"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(presence_bloom_false_positive_probability_estimated_ratio{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "Estimated"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(presence_smoke_false_positive_probability_target_ratio{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"})",
+          "legendFormat": "Sizing Target"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Measured"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Estimated"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#888888"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sizing Target"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 119,
+      "type": "row",
+      "title": "Workload Activity",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 120,
+      "title": "Insert Calls",
+      "description": "Calls per second, including repeated puts. This is paced smoke traffic, not a throughput benchmark.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(presence_bloom_puts_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\"}[$__rate_interval]))",
+          "legendFormat": "Scalable"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(presence_bloom_puts_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\"}[$__rate_interval]))",
+          "legendFormat": "Fixed"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scalable"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fixed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 121,
+      "title": "Lookup Outcomes",
+      "description": "Lookup calls per second. Possibly present is not proof of duplication; definitely absent rules out membership.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 39,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(presence_bloom_lookups_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\",presence_lookup_outcome=\"possibly_present\"}[$__rate_interval]))",
+          "legendFormat": "Scalable · possible"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(presence_bloom_lookups_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"scalable\",presence_lookup_outcome=\"definitely_absent\"}[$__rate_interval]))",
+          "legendFormat": "Scalable · absent"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(presence_bloom_lookups_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\",presence_lookup_outcome=\"possibly_present\"}[$__rate_interval]))",
+          "legendFormat": "Fixed · possible"
+        },
+        {
+          "refId": "D",
+          "expr": "sum(rate(presence_bloom_lookups_total{service_name=\"presence-smoke\",service_instance_id=\"$run\",presence_filter_type=\"fixed\",presence_lookup_outcome=\"definitely_absent\"}[$__rate_interval]))",
+          "legendFormat": "Fixed · absent"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scalable · possible"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Scalable · absent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fixed · possible"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fixed · absent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 122,
+      "type": "row",
+      "title": "JVM Heap and Generations",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 123,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 24,
+        "h": 2
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Memory below belongs to the **whole Java process**: both filters, telemetry, and tooling. Pool names come from the active collector; undefined maxima stay absent."
+      }
+    },
+    {
+      "id": 124,
+      "title": "Heap Usage",
+      "description": "Whole-process heap from MemoryMXBean, not container RSS or filter-only memory.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(presence_smoke_jvm_heap_used_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\"})",
+          "legendFormat": "Used"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(presence_smoke_jvm_heap_committed_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\"})",
+          "legendFormat": "Committed"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(presence_smoke_jvm_heap_limit_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\"})",
+          "legendFormat": "Maximum"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Committed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8a8a8a"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Maximum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#aaaaaa"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Peak"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 125,
+      "title": "Heap After Collection",
+      "description": "Last collection snapshot where supported. It is not current occupancy. No forced GC is requested.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 50,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "presence_smoke_jvm_memory_pool_after_gc_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",jvm_memory_type=\"heap\"}",
+          "legendFormat": "{{jvm_memory_pool_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Eden Space"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Survivor Space"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#777777"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Old Gen"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#aaaaaa"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Concurrent GC"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 126,
+      "title": "$heap_pool",
+      "description": "Used, committed, reported maximum and peak usage. Pools appear automatically. Their maxima must not be added as reserved shares of -Xmx.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 58,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "presence_smoke_jvm_memory_pool_used_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",jvm_memory_type=\"heap\",jvm_memory_pool_name=~\"${heap_pool:regex}\"}",
+          "legendFormat": "Used"
+        },
+        {
+          "refId": "B",
+          "expr": "presence_smoke_jvm_memory_pool_committed_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",jvm_memory_type=\"heap\",jvm_memory_pool_name=~\"${heap_pool:regex}\"}",
+          "legendFormat": "Committed"
+        },
+        {
+          "refId": "C",
+          "expr": "presence_smoke_jvm_memory_pool_limit_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",jvm_memory_type=\"heap\",jvm_memory_pool_name=~\"${heap_pool:regex}\"}",
+          "legendFormat": "Maximum"
+        },
+        {
+          "refId": "D",
+          "expr": "presence_smoke_jvm_memory_pool_peak_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",jvm_memory_type=\"heap\",jvm_memory_pool_name=~\"${heap_pool:regex}\"}",
+          "legendFormat": "Peak"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Committed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8a8a8a"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Maximum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#aaaaaa"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Peak"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "repeat": "heap_pool",
+      "repeatDirection": "h",
+      "maxPerRow": 3
+    },
+    {
+      "id": 127,
+      "type": "row",
+      "title": "Garbage Collection",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 66,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 128,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "x": 0,
+        "y": 67,
+        "w": 24,
+        "h": 2
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Collection counts and approximate elapsed time, by collector. GC elapsed time is **not a stop-the-world pause histogram**; quiet runs may show zero."
+      }
+    },
+    {
+      "id": 129,
+      "title": "Collection Rate",
+      "description": "Collections per second. Undefined counters remain absent.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(presence_smoke_jvm_gc_collections_total{service_name=\"presence-smoke\",service_instance_id=\"$run\"}[$__rate_interval])",
+          "legendFormat": "{{jvm_gc_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Young Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Old Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Concurrent GC"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 130,
+      "title": "Collection Time Rate",
+      "description": "Approximate collector elapsed seconds per second, not application pause fraction or CPU usage.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(presence_smoke_jvm_gc_collection_time_seconds_total{service_name=\"presence-smoke\",service_instance_id=\"$run\"}[$__rate_interval])",
+          "legendFormat": "{{jvm_gc_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:s/s",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Young Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Old Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Concurrent GC"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 131,
+      "title": "Total Collections",
+      "description": "Cumulative counts since this smoke JVM started.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 77,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "presence_smoke_jvm_gc_collections_total{service_name=\"presence-smoke\",service_instance_id=\"$run\"}",
+          "legendFormat": "{{jvm_gc_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Young Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Old Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Concurrent GC"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 132,
+      "title": "Total Collection Time",
+      "description": "Cumulative collector elapsed seconds. Concurrent phases can overlap; do not sum as exclusive pause time.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 77,
+        "w": 12,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "presence_smoke_jvm_gc_collection_time_seconds_total{service_name=\"presence-smoke\",service_instance_id=\"$run\"}",
+          "legendFormat": "{{jvm_gc_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Young Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Old Generation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "G1 Concurrent GC"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#666666"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 133,
+      "type": "row",
+      "title": "Non-Heap Memory and Buffers",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 83,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 134,
+      "title": "Metaspace and Code Heaps",
+      "description": "Used memory by actual non-heap pool. Metaspace, class space and code heaps are separate from direct buffers and total native memory.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 84,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "presence_smoke_jvm_memory_pool_used_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\",jvm_memory_type=\"non_heap\"}",
+          "legendFormat": "{{jvm_memory_pool_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metaspace"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Compressed Class Space"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CodeHeap 'non-nmethods'"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#555555"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CodeHeap 'non-profiled nmethods'"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#888888"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CodeHeap 'profiled nmethods'"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 135,
+      "title": "Direct and Mapped Memory",
+      "description": "Buffer memory used and logical capacity. Mapped size is not resident physical memory.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 84,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "presence_smoke_jvm_buffer_used_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\"}",
+          "legendFormat": "{{jvm_buffer_pool_name}} used"
+        },
+        {
+          "refId": "B",
+          "expr": "presence_smoke_jvm_buffer_capacity_bytes{service_name=\"presence-smoke\",service_instance_id=\"$run\"}",
+          "legendFormat": "{{jvm_buffer_pool_name}} capacity"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "direct used"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "direct capacity"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#777777"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mapped used"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mapped capacity"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mapped - 'non-volatile memory' used"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mapped - 'non-volatile memory' capacity"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 136,
+      "title": "Buffer Counts",
+      "description": "Estimated process-wide buffer count by JVM-reported pool.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 93,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "presence-vm"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "presence_smoke_jvm_buffer_count{service_name=\"presence-smoke\",service_instance_id=\"$run\"}",
+          "legendFormat": "{{jvm_buffer_pool_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "locale",
+          "min": 0,
+          "noValue": "No data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#272727"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisBorderShow": false,
+            "axisColorMode": "text",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "direct"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#272727"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mapped"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#999999"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mapped - 'non-volatile memory'"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#bbbbbb"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    5,
+                    4
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 137,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "x": 12,
+        "y": 93,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Reading This Run\n**Zero** means a measurement was observed. **No data** means samples are missing for the selected run or time range.\n\nRates need multiple samples. After a smoke ends, use its printed **completed-run link** to keep the full interval in view.\n\nFilter heap is a reachable object graph, not exclusive retained memory. JVM memory includes the whole process."
+      }
+    }
+  ]
+}

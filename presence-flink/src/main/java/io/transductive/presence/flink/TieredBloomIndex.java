@@ -118,6 +118,15 @@ final class TieredBloomIndex<K> implements BloomIndex<K> {
     @Override public int groupCount() { return groupCount; }
 
     @Override
+    public BloomStatistics statistics() {
+        // Untouched restored keys remain in managed state. Observability must not
+        // materialize them, select another state key, or disturb the dirty set.
+        var accumulator = new BloomStatistics.Accumulator();
+        for (Entry<K> entry : groups.values()) accumulator.add(entry.group);
+        return accumulator.snapshot();
+    }
+
+    @Override
     public void clear() {
         groups.clear();
         dirtyKeys.clear();

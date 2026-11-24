@@ -49,7 +49,12 @@ extensions.configure<PublishingExtension> {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
             pom {
-                name.set(if (project.name == "presence") "Presence" else "Presence Flink")
+                name.set(when (project.name) {
+                    "presence" -> "Presence"
+                    "presence-flink" -> "Presence Flink"
+                    "presence-otel" -> "Presence OpenTelemetry"
+                    else -> project.name
+                })
                 description.set(project.description)
                 url.set("https://github.com/Transductive/presence")
                 licenses {

@@ -290,6 +290,37 @@ public final class BloomFilter<T> {
     }
 
     /**
+     * Returns the fraction of logical bits currently set. Scans the bit array;
+     * sample on the owning thread, not on every lookup.
+     * Calling multiple occupancy diagnostics repeats that scan. A synchronous
+     * metrics refresh therefore delays its caller in proportion to array size;
+     * these methods must not be read concurrently with membership mutations.
+     * @return fill ratio between zero and one
+     */
+    public double fillRatio() { return (double) bits.cardinality() / bitSize; }
+
+    /**
+     * Estimates distinct encoded values from bit occupancy under uniform hashing.
+     * This is not an insertion counter and becomes unreliable near saturation.
+     * Scans the bit array; no counter is added to insertion's hot path.
+     * @return approximate element count, or positive infinity when all bits are set
+     */
+    public double estimatedElementCount() {
+        double fill = fillRatio();
+        return fill == 0 ? 0 : -(double) bitSize / hashFunctionCount * Math.log1p(-fill);
+    }
+
+    /**
+     * Estimates false-positive probability from bit occupancy and probe count.
+     * Assumes uniform independent probes; not a measured rate or a guarantee for
+     * correlated or adversarial inputs. Scans the bit array.
+     * @return occupancy-based probability estimate between zero and one
+     */
+    public double estimatedFalsePositiveProbability() {
+        return Math.pow(fillRatio(), hashFunctionCount);
+    }
+
+    /**
      * Returns the strategy fixed at construction time.
      *
      * @return the filter's hashing strategy

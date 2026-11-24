@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.LongSupplier;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -34,6 +35,8 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     private final CheckpointAwareness checkpoints;
     private final Output<T, OUT> output;
     private final ArrayList<BeforeLookup<? super T>> beforeLookup;
+    private final BloomMetrics metricsLevel;
+    private final long metricsRefreshIntervalNanos;
     private transient BloomIndex<K> index;
     private transient TieredBloomIndex.Store<K> managedStore;
     private transient Counter possibleDuplicates;
@@ -42,6 +45,8 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     private transient Counter membershipResets;
     private transient boolean warned;
     private transient boolean restored;
+    private transient BloomStatisticsMetrics statistics;
+    private transient LongSupplier metricsClock;
 
     HeapBloomProcessFunction(KeySelector<T, String> idSelector, PossibleDuplicateHandler<T> handler,
             BloomConfiguration configuration, TypeInformation<K> keyType, CheckpointAwareness checkpoints,
@@ -52,6 +57,14 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     HeapBloomProcessFunction(KeySelector<T, String> idSelector, PossibleDuplicateHandler<T> handler,
             BloomConfiguration configuration, TypeInformation<K> keyType, CheckpointAwareness checkpoints,
             Output<T, OUT> output, List<BeforeLookup<? super T>> beforeLookup) {
+        this(idSelector, handler, configuration, keyType, checkpoints, output, beforeLookup,
+                BloomMetrics.BASIC, BloomMetrics.DEFAULT_REFRESH_INTERVAL.toNanos());
+    }
+
+    HeapBloomProcessFunction(KeySelector<T, String> idSelector, PossibleDuplicateHandler<T> handler,
+            BloomConfiguration configuration, TypeInformation<K> keyType, CheckpointAwareness checkpoints,
+            Output<T, OUT> output, List<BeforeLookup<? super T>> beforeLookup,
+            BloomMetrics metricsLevel, long metricsRefreshIntervalNanos) {
         this.idSelector = idSelector;
         this.handler = handler;
         this.configuration = configuration;
@@ -59,6 +72,8 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
         this.checkpoints = checkpoints;
         this.output = output;
         this.beforeLookup = new ArrayList<>(beforeLookup);
+        this.metricsLevel = metricsLevel;
+        this.metricsRefreshIntervalNanos = metricsRefreshIntervalNanos;
     }
 
     static <T> Output<T, T> records() {
@@ -88,6 +103,10 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
         dropped = metrics.counter("dropped");
         membershipResets = metrics.counter("membershipResets");
         metrics.gauge("bloomGroups", index::groupCount);
+        if (metricsLevel == BloomMetrics.DETAILED) {
+            statistics = new BloomStatisticsMetrics(metrics, index::statistics, metricsRefreshIntervalNanos,
+                    metricsClock == null ? System::nanoTime : metricsClock);
+        }
         if (configuration.backend() == BloomBackend.HEAP && (checkpoints.enabled() || restored)) warnOnce();
     }
 
@@ -96,7 +115,7 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
         String id = Objects.requireNonNull(idSelector.getKey(event), "Membership ID must not be null");
         index.prepare(context.getCurrentKey());
         if (!beforeLookup.isEmpty()) {
-            try (var membership = new HeapMembershipControl<>(index, context.getCurrentKey(), membershipResets)) {
+            try (var membership = new HeapMembershipControl<>(index, context.getCurrentKey(), membershipResets, statistics)) {
                 for (var hook : beforeLookup) hook.beforeLookup(event, membership);
             }
         }
@@ -108,12 +127,26 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
                     "onPossibleDuplicate must return a non-null Decision");
             if (decision == Decision.DROP) {
                 dropped.inc();
+                refreshStatisticsIfDue();
                 return;
             }
         }
         OUT result = output.map(event, maybePresent, decision);
         forwarded.inc();
         collector.collect(result);
+        refreshStatisticsIfDue();
+    }
+
+    private void refreshStatisticsIfDue() {
+        // BASIC does not even read the clock. Detailed sampling runs here on the
+        // operator thread, never from a reporter or checkpoint callback.
+        if (statistics != null) statistics.afterRecord();
+    }
+
+    // Deterministic tests without sleeps; the clock is never serialized with the job.
+    void setMetricsClock(LongSupplier clock) {
+        if (index != null) throw new IllegalStateException("Set metrics clock before open");
+        metricsClock = Objects.requireNonNull(clock, "clock");
     }
 
     @Override
@@ -144,6 +177,7 @@ final class HeapBloomProcessFunction<K, T, OUT> extends KeyedProcessFunction<K, 
     @Override
     public void close() {
         if (index != null) index.clear();
+        if (statistics != null) statistics.close();
     }
 
     @FunctionalInterface

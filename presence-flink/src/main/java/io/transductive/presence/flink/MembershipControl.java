@@ -4,7 +4,7 @@ package io.transductive.presence.flink;
  * Controls the current stream key's heap membership during a before-lookup callback.
  * In managed mode, resets and counters are included in the next checkpoint.
  * This handle is valid only while that record's callbacks run, on the operator
- * thread. Do not retain it or use it asynchronously. It cannot address other keys.
+ * thread. Do not retain it or use it asynchronously. It cannot mutate other keys.
  */
 public interface MembershipControl {
     /**
@@ -26,4 +26,22 @@ public interface MembershipControl {
      * @throws IllegalStateException if used outside the callback scope or operator thread
      */
     void clearCurrentKey();
+
+    /**
+     * Refreshes detailed statistics across all resident filters in this operator
+     * subtask, synchronously on its owning thread. Requires
+     * {@link BloomMetrics#DETAILED}. Does not change membership or access managed
+     * state; the current event has not yet been observed. Call after a deliberate
+     * reset if its effect should be sampled now. Restarts the automatic interval.
+     *
+     * <p>This may scan many bit arrays and delay record processing. Reporter
+     * collection never performs this work. The default implementation reports
+     * that detailed metrics are unavailable, for compatibility with custom controls.
+     *
+     * @throws IllegalStateException if detailed metrics are disabled or the handle
+     *         is used outside the callback scope or operator thread
+     */
+    default void refreshStatistics() {
+        throw new IllegalStateException("Enable BloomMetrics.DETAILED to refresh statistics");
+    }
 }
