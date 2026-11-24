@@ -114,6 +114,36 @@ class TieredBloomIndexTest {
         assertThrows(IOException.class, () -> index(true, store, true).prepare("a"));
     }
 
+    @Test
+    void statisticsNeverLoadUntouchedKeysChangeStateSelectionOrDirtyLayers() throws Exception {
+        var store = new Store();
+        var first = index(true, store, false);
+        for (int i = 0; i < 1_000; i++) first.observe("a", "id-" + i);
+        first.observe("b", "keep");
+        first.flush();
+        int writes = store.writes.size();
+        var restored = index(true, store, true);
+        store.select("b");
+        assertEquals(BloomStatistics.EMPTY, restored.statistics());
+        assertEquals(0, store.reads);
+        assertEquals("b", store.key);
+        restored.prepare("a");
+        int reads = store.reads;
+        store.select("b");
+        var snapshot = restored.statistics();
+        assertEquals(1, snapshot.groups());
+        assertTrue(snapshot.layers() > 1);
+        assertTrue(snapshot.estimatedElements() > 900);
+        assertEquals(reads, store.reads);
+        assertEquals("b", store.key, "sampling must not select keyed state");
+        restored.flush();
+        assertEquals(writes, store.writes.size(), "sampling must not mark layers or manifests dirty");
+        restored.clear("a");
+        assertEquals(0, restored.statistics().estimatedElements());
+        assertEquals(1, restored.statistics().layers());
+        assertEquals(reads, store.reads);
+    }
+
     private static TieredBloomIndex<String> index(boolean scalable, Store store, boolean restored) {
         return new TieredBloomIndex<>(new BloomConfiguration(scalable, 1, 0.01,
                 HashingStrategy.MURMUR3_128, BloomBackend.MANAGED_STATE), key -> key, store,

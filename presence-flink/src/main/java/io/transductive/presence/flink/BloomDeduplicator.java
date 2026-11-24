@@ -2,6 +2,7 @@ package io.transductive.presence.flink;
 
 import io.transductive.presence.bloom.HashingStrategy;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -37,6 +38,10 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
  * This operator does not provide an
  * end-to-end delivery guarantee or latest-event-time selection.
  *
+ * <p>{@link Builder#metrics} enables optional per-subtask statistics through
+ * Flink's metric group. Detailed sampling runs synchronously on the operator
+ * thread; reporters only read a cached sample. It does not install an SDK.
+ *
  * @param <T> the stream record type
  */
 public final class BloomDeduplicator<T> implements Serializable {
@@ -47,6 +52,10 @@ public final class BloomDeduplicator<T> implements Serializable {
     private final PossibleDuplicateHandler<T> handler;
     /** Filter sizing and storage choices; contains no live membership. */
     private final BloomConfiguration configuration;
+    /** Reporter-independent metrics selection; not part of membership snapshots. */
+    private final BloomMetrics metrics;
+    /** Minimum time between operator-thread statistics samples. */
+    private final long metricsRefreshIntervalNanos;
     /** Immutable registration order; hooks hold no library-owned live membership. */
     private final ArrayList<BeforeLookup<? super T>> beforeLookup;
 
@@ -54,6 +63,8 @@ public final class BloomDeduplicator<T> implements Serializable {
         idSelector = builder.idSelector;
         handler = Objects.requireNonNull(builder.handler, "onPossibleDuplicate must be configured explicitly");
         beforeLookup = new ArrayList<>(builder.beforeLookup);
+        metrics = builder.metrics;
+        metricsRefreshIntervalNanos = builder.metricsRefreshIntervalNanos;
         configuration = new BloomConfiguration(builder.scalable, builder.capacity,
                 builder.probability, builder.hashingStrategy, builder.backend);
     }
@@ -88,7 +99,8 @@ public final class BloomDeduplicator<T> implements Serializable {
         validateHooks(stream);
         var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
         var function = new HeapBloomProcessFunction<K, T, T>(idSelector, handler, configuration,
-                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.records(), beforeLookup);
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.records(), beforeLookup,
+                metrics, metricsRefreshIntervalNanos);
         if (configuration.backend() == BloomBackend.MANAGED_STATE) {
             return stream.transform("Presence Bloom Deduplicator", stream.getType(), new TieredBloomOperator<>(function));
         }
@@ -126,7 +138,8 @@ public final class BloomDeduplicator<T> implements Serializable {
         var checkpoints = CheckpointAwareness.capture(stream.getExecutionEnvironment().getCheckpointConfig());
         var outputType = MembershipResult.typeInformation(stream.getType());
         var function = new HeapBloomProcessFunction<K, T, MembershipResult<T>>(idSelector, handler, configuration,
-                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.withMembership(), beforeLookup);
+                stream.getKeyType(), checkpoints, HeapBloomProcessFunction.withMembership(), beforeLookup,
+                metrics, metricsRefreshIntervalNanos);
         if (configuration.backend() == BloomBackend.MANAGED_STATE) {
             return stream.transform("Presence Bloom Deduplicator With Membership", outputType, new TieredBloomOperator<>(function));
         }
@@ -153,6 +166,8 @@ public final class BloomDeduplicator<T> implements Serializable {
         private double probability = 0.01;
         private HashingStrategy hashingStrategy = HashingStrategy.MURMUR3_128;
         private BloomBackend backend = BloomBackend.HEAP;
+        private BloomMetrics metrics = BloomMetrics.BASIC;
+        private long metricsRefreshIntervalNanos = BloomMetrics.DEFAULT_REFRESH_INTERVAL.toNanos();
 
         private Builder(KeySelector<T, String> idSelector) { this.idSelector = idSelector; }
 
@@ -217,6 +232,50 @@ public final class BloomDeduplicator<T> implements Serializable {
         public Builder<T> backend(BloomBackend backend) {
             this.backend = Objects.requireNonNull(backend, "backend");
             return this;
+        }
+
+        /**
+         * Selects the metrics registered with Flink. BASIC preserves the existing
+         * decision, reset, resident-group, and managed-state I/O metrics. DETAILED
+         * also samples aggregate statistics across this subtask's resident filters.
+         * No per-key labels, reporter, SDK, or background sampler are installed.
+         *
+         * <p>Detailed refresh is synchronous and delays the triggering record;
+         * fixed filters scan their arrays. All other operations only check the
+         * interval. BASIC performs neither the sampling nor its clock check.
+         *
+         * @param metrics non-null selection; default BASIC
+         * @return this builder
+         */
+        public Builder<T> metrics(BloomMetrics metrics) {
+            this.metrics = Objects.requireNonNull(metrics, "metrics");
+            return this;
+        }
+
+        /**
+         * Configures detailed sampling after the first successful record following
+         * the interval, including a dropped duplicate. The default is 30 seconds.
+         * Idle subtasks keep their cached sample. A longer interval reduces
+         * frequency, not the duration of a single refresh. Has no effect in BASIC.
+         * Manual {@link MembershipControl#refreshStatistics()} restarts the interval.
+         *
+         * @param interval positive duration representable in long nanoseconds
+         * @return this builder
+         * @throws NullPointerException if interval is null
+         * @throws IllegalArgumentException if interval is nonpositive or too large
+         */
+        public Builder<T> metricsRefreshInterval(Duration interval) {
+            Objects.requireNonNull(interval, "interval");
+            try {
+                long nanos = interval.toNanos();
+                if (nanos > 0) {
+                    metricsRefreshIntervalNanos = nanos;
+                    return this;
+                }
+            } catch (ArithmeticException error) {
+                throw new IllegalArgumentException("metrics refresh interval must fit in long nanoseconds", error);
+            }
+            throw new IllegalArgumentException("metrics refresh interval must be positive");
         }
 
         /**

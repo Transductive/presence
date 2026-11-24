@@ -8,11 +8,17 @@ final class HeapMembershipControl<K> implements MembershipControl, AutoCloseable
     private BloomIndex<K> index;
     private K key;
     private Counter resets;
+    private BloomStatisticsMetrics statistics;
 
     HeapMembershipControl(BloomIndex<K> index, K key, Counter resets) {
+        this(index, key, resets, null);
+    }
+
+    HeapMembershipControl(BloomIndex<K> index, K key, Counter resets, BloomStatisticsMetrics statistics) {
         this.index = index;
         this.key = key;
         this.resets = resets;
+        this.statistics = statistics;
     }
 
     @Override
@@ -27,6 +33,13 @@ final class HeapMembershipControl<K> implements MembershipControl, AutoCloseable
         if (index.clear(key)) resets.inc();
     }
 
+    @Override
+    public void refreshStatistics() {
+        requireActive();
+        if (statistics == null) throw new IllegalStateException("Enable BloomMetrics.DETAILED to refresh statistics");
+        statistics.refresh();
+    }
+
     private void requireActive() {
         if (Thread.currentThread() != owner || index == null) {
             throw new IllegalStateException("MembershipControl is only valid during beforeLookup on the operator thread");
@@ -39,5 +52,6 @@ final class HeapMembershipControl<K> implements MembershipControl, AutoCloseable
         index = null;
         key = null;
         resets = null;
+        statistics = null;
     }
 }

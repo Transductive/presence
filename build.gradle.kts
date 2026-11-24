@@ -43,9 +43,9 @@ tasks.withType<AbstractArchiveTask>().configureEach {
 
 // The root coordinates builds and website tools; only child projects publish libraries.
 tasks.jar { enabled = false }
-tasks.named("build") { dependsOn(":presence:build", ":presence-flink:build") }
-tasks.named("check") { dependsOn(":presence:check", ":presence-flink:check") }
-tasks.named("clean") { dependsOn(":presence:clean", ":presence-flink:clean") }
+tasks.named("build") { dependsOn(":presence:build", ":presence-flink:build", ":presence-otel:build") }
+tasks.named("check") { dependsOn(":presence:check", ":presence-flink:check", ":presence-otel:check") }
+tasks.named("clean") { dependsOn(":presence:clean", ":presence-flink:clean", ":presence-otel:clean") }
 
 val coreJarFiles = configurations.create("coreJarFiles") {
     isCanBeResolved = true

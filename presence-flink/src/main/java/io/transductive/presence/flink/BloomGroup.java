@@ -42,6 +42,17 @@ final class BloomGroup {
 
     long events() { return events; }
     int layerCount() { return scalable != null ? scalable.layerCount() : 1; }
+    long bitArrayBytes() {
+        return scalable != null ? scalable.bitSize() / Byte.SIZE
+                : ((long) fixed.bitSize() + Long.SIZE - 1) / Long.SIZE * Long.BYTES;
+    }
+    double estimatedElementCount() {
+        return scalable != null ? scalable.estimatedElementCount() : fixed.estimatedElementCount();
+    }
+    double activeLayerFillRatio() { return scalable != null ? scalable.activeLayerFillRatio() : fixed.fillRatio(); }
+    double estimatedFalsePositiveProbability() {
+        return scalable != null ? scalable.estimatedFalsePositiveProbability() : fixed.estimatedFalsePositiveProbability();
+    }
     byte[] snapshotLayer(int index) {
         if (scalable != null) return scalable.layers().get(index).snapshot();
         if (index != 0) throw new IndexOutOfBoundsException(index);

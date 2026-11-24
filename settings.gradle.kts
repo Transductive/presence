@@ -8,4 +8,4 @@ dependencyResolutionManagement {
     }
 }
 
-include("presence", "presence-flink")
+include("presence", "presence-flink", "presence-otel")

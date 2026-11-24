@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -65,6 +66,7 @@ class BloomDeduplicatorMiniClusterTest {
             var keyed = environment.fromData(input, type).setParallelism(1).keyBy(event -> event.f0);
             var builder = BloomDeduplicator.<Tuple3<String, String, Integer>>by(event -> event.f1)
                     .backend(BloomBackend.HEAP)
+                    .metrics(BloomMetrics.DETAILED).metricsRefreshInterval(Duration.ofNanos(1))
                     .onPossibleDuplicate(event -> decision);
             if (scalable) builder.scalable(1_000);
             else builder.fixed(1_000);
@@ -116,6 +118,7 @@ class BloomDeduplicatorMiniClusterTest {
             }
             var keyed = environment.fromData(input, type).setParallelism(1).keyBy(event -> event.f0);
             var builder = BloomDeduplicator.<Tuple3<String, String, Integer>>by(event -> event.f1)
+                    .metrics(BloomMetrics.DETAILED).metricsRefreshInterval(Duration.ofNanos(1))
                     .onPossibleDuplicate(event -> decision);
             if (scalable) builder.scalable(1_000);
             else builder.fixed(1_000);

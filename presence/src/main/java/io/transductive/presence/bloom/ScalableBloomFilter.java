@@ -357,6 +357,27 @@ public final class ScalableBloomFilter<T> {
     public HashingStrategy hashingStrategy() { return strategy; }
 
     /**
+     * Estimates represented distinct values from each layer's slice occupancies.
+     * Assumes uniform hashing. Values whose insertion was already a possible
+     * match do not change occupancy, so this is not an exact accepted-input count.
+     * Cost is proportional to total slices, without scanning bit arrays.
+     * @return sum of the layer estimates, zero for an empty filter
+     */
+    public double estimatedElementCount() {
+        double total = 0;
+        for (Layer layer : layers) total += layer.estimatedElementCount();
+        return total;
+    }
+
+    /**
+     * Returns the largest slice fill ratio in the newest, writable layer.
+     * Growth occurs before a slice would exceed one-half fill; this value drops
+     * when a new layer is allocated. Cost is proportional to the active probe count.
+     * @return active layer's maximum slice fill, between zero and one-half
+     */
+    public double activeLayerFillRatio() { return layers.getLast().maximumSliceFillRatio(); }
+
+    /**
      * Sums each layer's product of slice fill ratios (a union-bound estimate).
      * This models uniform, independent probes; it is not a measured rate or a
      * guarantee for correlated hashes or adversarial inputs. Cost is proportional
@@ -501,6 +522,27 @@ public final class ScalableBloomFilter<T> {
          * @return number of disjoint probe slices
          */
         public int hashFunctionCount() { return probes; }
+
+        /**
+         * Estimates this layer's distinct values by averaging slice occupancy estimates.
+         * Assumes uniform hashing; does not count put calls or scan the bit array.
+         * @return approximate represented element count
+         */
+        public double estimatedElementCount() {
+            double total = 0;
+            for (int count : setBits) total -= sliceBits * Math.log1p(-(double) count / sliceBits);
+            return total / probes;
+        }
+
+        /**
+         * Returns the fullest slice's occupancy, which drives layer rollover.
+         * @return maximum slice fill ratio, between zero and one-half
+         */
+        public double maximumSliceFillRatio() {
+            int maximum = 0;
+            for (int count : setBits) maximum = Math.max(maximum, count);
+            return (double) maximum / sliceBits;
+        }
 
         /**
          * Copies this layer into an independent versioned snapshot with an integrity checksum.

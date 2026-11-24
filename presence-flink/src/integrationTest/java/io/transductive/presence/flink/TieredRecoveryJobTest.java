@@ -60,6 +60,7 @@ class TieredRecoveryJobTest {
             var source = environment.addSource(new FailAfterCheckpoint(), Types.POJO(Event.class))
                     .setParallelism(1).uid("recovering-source");
             var builder = BloomDeduplicator.<Event>by(Event::id).backend(BloomBackend.MANAGED_STATE)
+                    .metrics(BloomMetrics.DETAILED).metricsRefreshInterval(Duration.ofNanos(1))
                     .onPossibleDuplicate(event -> Decision.FORWARD_WITH_MEMBERSHIP);
             if (scalable) builder.scalable(1);
             else builder.fixed(1_000);
