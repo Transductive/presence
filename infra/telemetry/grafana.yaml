@@ -1,0 +1,57 @@
+fullnameOverride: presence-grafana
+replicas: 1
+service:
+  type: NodePort
+  nodePort: 30300
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+grafana.ini:
+  server:
+    root_url: http://localhost:3000
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer
+  auth:
+    disable_login_form: true
+  users:
+    allow_sign_up: false
+    default_theme: light
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+  dashboards:
+    min_refresh_interval: 1s
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: VictoriaMetrics
+        uid: presence-vm
+        type: prometheus
+        access: proxy
+        url: http://presence-vm-server:8428
+        isDefault: true
+        editable: false
+        jsonData:
+          httpMethod: POST
+          timeInterval: 1s
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: presence
+        orgId: 1
+        folder: Presence
+        type: file
+        disableDeletion: false
+        editable: false
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards/presence
+dashboardsConfigMaps:
+  presence: presence-dashboard

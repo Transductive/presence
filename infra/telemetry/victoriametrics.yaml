@@ -1,0 +1,25 @@
+nameOverride: presence-vm
+rbac:
+  create: false
+serviceAccount:
+  automountToken: false
+server:
+  name: server
+  retentionPeriod: 1d
+  extraArgs:
+    opentelemetry.usePrometheusNaming: "true"
+    memory.allowedBytes: 256MiB
+  persistentVolume:
+    enabled: true
+    storageClassName: local-path
+    size: 2Gi
+  service:
+    type: NodePort
+    nodePort: 30428
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi

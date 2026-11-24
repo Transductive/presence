@@ -40,7 +40,7 @@ run = "sh ./gradlew build publishToMavenLocal"
 run_windows = "cmd /d /c gradlew.bat build publishToMavenLocal"
 
 [tasks.ci]
-description = "Clean, package both libraries, and run unit tests (no benchmark tasks)"
+description = "Clean, package all libraries, and run unit tests (no benchmark tasks)"
 # One Gradle invocation keeps clean and build ordered.
 run = "sh ./gradlew --no-daemon clean build"
 run_windows = "cmd /d /c gradlew.bat --no-daemon clean build"
@@ -67,18 +67,18 @@ run_windows = "cmd /d /c gradlew.bat"
 
 [tasks."benchmark:check"]
 description = "Manually compile the benchmark harness and run its fixture tests"
-run = "sh ./gradlew benchmarkTest"
-run_windows = "cmd /d /c gradlew.bat benchmarkTest"
+run = "sh ./gradlew :presence:benchmarkTest"
+run_windows = "cmd /d /c gradlew.bat :presence:benchmarkTest"
 
 [tasks.benchmark]
 description = "Run JMH comparisons and print the browser report URL"
-run = "sh ./gradlew benchmark"
-run_windows = "cmd /d /c gradlew.bat benchmark"
+run = "sh ./gradlew :presence:benchmark"
+run_windows = "cmd /d /c gradlew.bat :presence:benchmark"
 
 [tasks."benchmark:smoke"]
 description = "Check benchmark wiring with a short N=1000 run (not performance evidence)"
-run = "sh ./gradlew benchmarkSmoke"
-run_windows = "cmd /d /c gradlew.bat benchmarkSmoke"
+run = "sh ./gradlew :presence:benchmarkSmoke"
+run_windows = "cmd /d /c gradlew.bat :presence:benchmarkSmoke"
 
 [tasks."benchmark:scalable"]
 description = "Compare fixed vs scalable Bloom at N=1000, 10000, 100000 and write a browser report"
@@ -161,7 +161,7 @@ run = "sh ./gradlew siteServe"
 run_windows = "cmd /d /c gradlew.bat siteServe"
 
 [tasks."build:all"]
-description = "Build and unit-test both library modules"
+description = "Build and unit-test all library modules"
 run = "sh ./gradlew build"
 run_windows = "cmd /d /c gradlew.bat build"
 
@@ -169,6 +169,61 @@ run_windows = "cmd /d /c gradlew.bat build"
 description = "Build the Flink integration and run its unit tests"
 run = "sh ./gradlew :presence-flink:build"
 run_windows = "cmd /d /c gradlew.bat :presence-flink:build"
+
+[tasks."otel:build"]
+description = "Build the optional OpenTelemetry adapter and run its unit tests"
+run = "sh ./gradlew :presence-otel:build"
+run_windows = "cmd /d /c gradlew.bat :presence-otel:build"
+
+[tasks."otel:test"]
+description = "Test OpenTelemetry metrics, filter delegation, and callback lifecycle"
+run = "sh ./gradlew :presence-otel:test"
+run_windows = "cmd /d /c gradlew.bat :presence-otel:test"
+
+[tasks."benchmark:otel"]
+description = "Measure raw Bloom vs OTel, including refresh cost, and print an offline browser report"
+run = "sh ./gradlew :presence-otel:benchmarkTest :presence-otel:benchmark"
+run_windows = "cmd /d /c gradlew.bat :presence-otel:benchmarkTest :presence-otel:benchmark"
+
+[tasks."benchmark:otel:smoke"]
+description = "Check the OTel JMH harness at N=1000; scores are not performance conclusions"
+run = "sh ./gradlew :presence-otel:benchmarkTest :presence-otel:benchmarkSmoke"
+run_windows = "cmd /d /c gradlew.bat :presence-otel:benchmarkTest :presence-otel:benchmarkSmoke"
+
+[tasks."telemetry:up"]
+description = "Start local k3d, VictoriaMetrics, Collector, and Grafana with fixed localhost ports"
+tools = { k3d = "5.9.0", helm = "4.3.2", kubectl = "1.37.2" }
+run = "java tools/Telemetry.java up"
+
+[tasks."telemetry:smoke"]
+description = "Start telemetry, print the live Grafana link, and exercise filters for 1 minute (or --minutes N)"
+tools = { k3d = "5.9.0", helm = "4.3.2", kubectl = "1.37.2" }
+run = "java tools/Telemetry.java smoke"
+
+[tasks."telemetry:status"]
+description = "Inspect the local Presence telemetry cluster, pods, and storage"
+tools = { k3d = "5.9.0", helm = "4.3.2", kubectl = "1.37.2" }
+run = "java tools/Telemetry.java status"
+
+[tasks."telemetry:flink"]
+description = "Print the live Grafana link and run a Flink MiniCluster smoke for 1 minute (or --minutes N)"
+tools = { k3d = "5.9.0", helm = "4.3.2", kubectl = "1.37.2" }
+run = "java tools/Telemetry.java flink-smoke"
+
+[tasks."telemetry:flink:rocksdb"]
+description = "Run the Flink smoke in Linux Docker with RocksDB native metrics (default 1 minute)"
+tools = { k3d = "5.9.0", helm = "4.3.2", kubectl = "1.37.2" }
+run = "java tools/Telemetry.java flink-rocksdb"
+
+[tasks."telemetry:down"]
+description = "Stop the Presence telemetry cluster and preserve local metrics"
+tools = { k3d = "5.9.0", helm = "4.3.2", kubectl = "1.37.2" }
+run = "java tools/Telemetry.java down"
+
+[tasks."telemetry:reset"]
+description = "Delete the Presence telemetry cluster and its local metrics data"
+tools = { k3d = "5.9.0", helm = "4.3.2", kubectl = "1.37.2" }
+run = "java tools/Telemetry.java reset"
 
 [tasks."flink:test"]
 description = "Run Flink adapter unit tests (optional -PflinkVersion=2.x.y)"
