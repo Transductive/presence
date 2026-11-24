@@ -20,7 +20,7 @@ The default deployment base is `https://transductive.github.io/presence/`;
 override it with `-- "-PsiteBaseUrl=https://example.com/docs/"`. Building does not
 publish. The artifact can be served by any static host; no Node or application
 server is needed. The Pages workflow builds and verifies it before deployment;
-the separate library CI builds both modules and runs unit tests on Windows, macOS, and Linux.
+the separate library CI builds all modules and runs unit tests on Windows, macOS, and Linux.
 A documentation CI job runs the same site check on pull requests, before merge.
 
 The [Flink guide](content/docs/flink.md) explains **operator parallelism**,
@@ -30,6 +30,13 @@ documentation. Its API reference
 is unpacked from `presence-flink`'s Javadoc artifact into `build/site/api/flink/`.
 Only HTML and documentation assets are copied; Flink runtime dependencies and
 the integration JAR never enter `playground/lib/` or the browser classpath.
+
+The [observability guide](content/docs/observability.md) covers the optional
+`presence-otel` wrapper, metric meanings, owner-thread sampling, and local smoke
+and benchmark tasks. Its generated API is unpacked from the module's Javadoc
+artifact into `build/site/api/otel/`, alongside the core and Flink references.
+OpenTelemetry runtime JARs remain outside the browser playground. `site:check`
+verifies links and fragments across all three API references and the guides.
 
 ## Publish with GitHub Pages
 
@@ -85,7 +92,7 @@ in. The editable examples live in `static/playground/Playground.java` and
 `static/playground/ScalablePlayground.java`; both declare `class Playground`
 because each is compiled separately. `site:check` compiles and runs both shipped
 examples against the built JAR, alongside the bridge's unit tests. The normal library `build`/CI still
-runs core and Flink adapter unit tests, with no benchmarks or browser runtime downloads.
+runs core, Flink, and OpenTelemetry adapter unit tests, with no benchmarks or browser runtime downloads.
 A separate CI job verifies the Flink integration in a local runtime.
 
 The Java preview server (`../tools/SiteServer.java`) adds JAR byte-range support

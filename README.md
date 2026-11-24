@@ -21,9 +21,19 @@ or fixed-size **[`BloomFilter`](https://transductive.github.io/presence/api/io/t
 per **stream key** assigned to it. Filters owned by subtasks on the same
 **TaskManager** share that worker JVM's heap; size memory for resident key count
 as well as per-key capacity. Core consumers do not acquire Flink dependencies.
-Both modules use the root Gradle wrapper and mise setup.
+All modules use the root Gradle wrapper and mise setup.
 See the [Flink field guide](https://transductive.github.io/presence/docs/flink/)
 for configuration, membership results, reset hooks, and managed-state recovery.
+
+For standalone filter metrics, the optional
+[Presence OpenTelemetry adapter](presence-otel/README.md) wraps either filter
+with operation counters and bit-array footprint metrics. Your application owns
+the telemetry SDK. Core consumers do not acquire OpenTelemetry dependencies.
+Try the [local telemetry smoke](infra/telemetry/README.md) with
+`mise run telemetry:smoke`: a one-minute workload and live Grafana operations
+overview backed by k3d, OpenTelemetry Collector, and VictoriaMetrics.
+Use `mise run telemetry:flink` for a MiniCluster workload and a dedicated
+Flink dashboard covering keyed membership, state writes, checkpoints, and JVM usage.
 
 ## A First Look
 
@@ -71,6 +81,7 @@ growth settings, probability budgeting, and operational limits.
 | Counting Bloom filter | Proposed |
 | Scalable Bloom filter with a shared false-positive budget | Available |
 | Keyed Java DataStream integration for Flink 2.x, with heap lookups and optional managed-state recovery | Available in the source snapshot |
+| Optional OpenTelemetry counters and filter footprint metrics | Available in the source snapshot |
 | Filter serialization and restoration | Proposed |
 | JMH lookup/construction timing, allocation, and HTML flamegraphs | Available |
 | Hot/broad absent-query benchmarks and exact downstream verification | Available |
@@ -237,6 +248,8 @@ Start with `mise tasks ls` (or `mise run`) to list the available commands:
 | `mise run benchmark:check` | Manually compile the benchmark harness and verify its fixtures. |
 | `mise run benchmark:smoke` | Quickly verify the benchmark harness at N=1,000. |
 | `mise run benchmark:scalable` | Compare fixed-size vs. growing Bloom, with timing, layer counts, and accuracy. |
+| `mise run benchmark:otel` | Compare raw Bloom and OTel wrapper costs, including synchronous statistics refresh. |
+| `mise run benchmark:otel:smoke` | Validate the optional OTel benchmark harness at N=1,000. |
 | `mise run benchmark:flamegraph` | Record JFR profiles and generate HTML flamegraphs. |
 | `mise run benchmark:allocation` | Audit lookup allocation, then compare five string input kinds at N=1,000. |
 | `mise run benchmark:misses` | Compare absent lookups with hot and broad query pools across all five sizes. |
